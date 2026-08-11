@@ -402,22 +402,12 @@ func (d *DB) SaveTodo(ctx context.Context, t *models.Todo) error {
 	return err
 }
 
-// ToggleTodo flips a todo's completed flag. NOT in UPDATE SET is
-// unsupported in libraVDB yet, so this is read-modify-write.
+// ToggleTodo flips a todo's completed flag — a single
+// parameterized UPDATE with a unary NOT in the SET expression.
 func (d *DB) ToggleTodo(ctx context.Context, id string) error {
-	res, err := d.raw.QueryWithParams(ctx,
-		`SELECT completed FROM todos WHERE id = $1`,
+	_, err := d.raw.QueryWithParams(ctx,
+		`UPDATE todos SET completed = NOT completed WHERE id = $1`,
 		libravdb.QueryParams{"1": id})
-	if err != nil {
-		return err
-	}
-	if len(res.Results) == 0 {
-		return nil
-	}
-	now := res.Results[0].Metadata["completed"] == true
-	_, err = d.raw.QueryWithParams(ctx,
-		`UPDATE todos SET completed = $1 WHERE id = $2`,
-		libravdb.QueryParams{"1": !now, "2": id})
 	return err
 }
 

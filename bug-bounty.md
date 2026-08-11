@@ -109,7 +109,7 @@ reference) against the nanite stack + libraVDB. Format per entry:
   Regression test `TestE2E_ForLoopVarShadowing`. Demo workaround reverted — the SQL editor uses
   `@for _, c := range ...` again.
 
-### L6. [libraVDB] NOT in UPDATE SET is unsupported — OPEN
+### L6. [libraVDB] NOT in UPDATE SET is unsupported — FIXED
 
 - **Tried**: `UPDATE todos SET completed = NOT completed WHERE id = $1`.
 - **Happened**: `optimize error: UPDATE SET expression: expression kind 13 is unsupported`.
@@ -120,7 +120,9 @@ reference) against the nanite stack + libraVDB. Format per entry:
   INSERT INTO t (id) VALUES ('a')
   UPDATE t SET done = NOT done WHERE id = 'a'
   ```
-- **Status**: open — demo workaround: read-modify-write (SELECT then UPDATE with the flipped literal).
+- **Status**: fixed — UPDATE ... SET lowers and evaluates unary NOT against the current row,
+  including parameterized predicates; NULL semantics preserved. Demo reverted to the
+  single-statement toggle.
 
 ### L7. [libraVDB] VERSIONS OF metadata value types — NOTE
 
