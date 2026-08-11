@@ -97,9 +97,9 @@ func RenderSQLPage(c *render.ComponentContext, p models.Page, children func(c *r
 		c.WriteString(">")
 		c.WriteString(`<thead>`)
 		c.WriteString(`<tr>`)
-		for _, col := range p.Dash.SQLColumns {
+		for _, __c := range p.Dash.SQLColumns {
 			c.WriteString(`<th>`)
-			c.WriteString(html.EscapeString(fmt.Sprint(col)))
+			c.WriteString(html.EscapeString(fmt.Sprint(__c)))
 			c.WriteString(`</th>`)
 		}
 		c.WriteString(`</tr>`)

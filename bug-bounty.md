@@ -95,15 +95,19 @@ reference) against the nanite stack + libraVDB. Format per entry:
 - **Status**: fixed — static attr values now pass through `goStr` (escapes `\` and `"`). Regression test
   `TestE2E_QuotedAttrValue`.
 
-### G2. [nanite-gsx] @for loop variables shadow the generated context param `c` — OPEN
+### G2. [nanite-gsx] @for loop variables shadow the generated context param `c` — FIXED
 
 - **Tried**: `@for _, c := range p.Dash.SQLColumns { <th>{c}</th> }`.
-- **Happened**: the codegen emits `for _, c := range ... { c.WriteString(...) }` — `c` is now a string,
+- **Happened**: the codegen emitted `for _, c := range ... { c.WriteString(...) }` — `c` is now a string,
   shadowing the `*render.ComponentContext` param → `c.WriteString undefined (type string has no field...)`.
 - **Desired**: loop variables can't collide with the context param (rename one side automatically, or
   error with a clear message).
 - **Repro**: any `@for` whose variables include `c`.
-- **Status**: open — demo workaround: rename the loop variable (`col`, `cell`).
+- **Status**: fixed — loop variables colliding with the reserved render-signature names
+  (`c`, `children`) are renamed (`c` → `__c`) in the condition and, recursively, in every expression
+  and dynamic attribute of the loop body. Field accesses (`foo.c`) and string literals are untouched.
+  Regression test `TestE2E_ForLoopVarShadowing`. Demo workaround reverted — the SQL editor uses
+  `@for _, c := range ...` again.
 
 ### L6. [libraVDB] NOT in UPDATE SET is unsupported — OPEN
 

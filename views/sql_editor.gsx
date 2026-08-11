@@ -29,8 +29,8 @@ func SQLPage(p models.Page) {
                 <table class="uk-table uk-table-hover uk-table-divider uk-table-small">
                     <thead>
                         <tr>
-                            @for _, col := range p.Dash.SQLColumns {
-                                <th>{col}</th>
+                            @for _, c := range p.Dash.SQLColumns {
+                                <th>{c}</th>
                             }
                         </tr>
                     </thead>
