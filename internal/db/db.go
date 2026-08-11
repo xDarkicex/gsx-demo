@@ -18,6 +18,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/xDarkicex/libravdb/libravdb"
 
@@ -72,6 +73,19 @@ func (d *DB) Close() error {
 func (d *DB) migrate(ctx context.Context) error {
 	// Register the FOLLOWS edge kind (process-wide, idempotent).
 	libravdb.RegisterEdgeKind("FOLLOWS", 1)
+
+	// The durable click counter (standard SQL CRUD — the catalog
+	// persists, so the table and its rows survive reopen).
+	if _, err := d.raw.Query(ctx,
+		"CREATE TABLE counter (id TEXT PRIMARY KEY, value INTEGER)"); err != nil {
+		if !strings.Contains(err.Error(), "exists") {
+			return fmt.Errorf("create counter table: %w", err)
+		}
+	}
+	if _, err := d.raw.Query(ctx,
+		"INSERT INTO counter (id, value) VALUES ('home', 0)"); err != nil {
+		// Row already present on reopen.
+	}
 
 	col, err := d.raw.GetCollection("users")
 	if err == nil {
@@ -241,6 +255,35 @@ func (d *DB) Suggest(ctx context.Context, me string) ([]models.Suggestion, error
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Mutual > out[j].Mutual })
 	return out, nil
+}
+
+// GetCounter returns the durable homepage click count.
+func (d *DB) GetCounter(ctx context.Context) (int, error) {
+	res, err := d.raw.Query(ctx, "SELECT value FROM counter WHERE id = 'home'")
+	if err != nil {
+		return 0, err
+	}
+	if len(res.Results) == 0 {
+		return 0, nil
+	}
+	return atoi(res.Results[0].Metadata["value"]), nil
+}
+
+// IncrementCounter bumps the durable click count and returns the
+// new value. Read-modify-write with a parameterized literal —
+// arithmetic in UPDATE SET is not supported yet in libraVDB.
+func (d *DB) IncrementCounter(ctx context.Context) (int, error) {
+	n, err := d.GetCounter(ctx)
+	if err != nil {
+		return 0, err
+	}
+	n++
+	if _, err := d.raw.QueryWithParams(ctx,
+		"UPDATE counter SET value = $1 WHERE id = 'home'",
+		libravdb.QueryParams{"1": n}); err != nil {
+		return 0, err
+	}
+	return n, nil
 }
 
 // Count returns the number of users (homepage + dashboard stats).

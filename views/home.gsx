@@ -20,20 +20,7 @@ func Home(p models.Page) {
         <p class="muted">{p.Home.UserCount} users in libraVDB</p>
     </section>
 
-    <section class="card" x-data={map[string]any{"count": 0, "feature": p.Home.Feature}}>
-        <h2>Alpine.js, hydrated from Go</h2>
-        <p class="muted">
-            This widget's initial state was serialized by
-            <code>c.WriteHydrateProps</code> — zero-alloc JSON from the
-            server render.
-        </p>
-        <div class="demo-row">
-            <button class="btn" @click="count++">
-                Clicked <span class="badge" x-text="count"></span> times
-            </button>
-            <span class="badge" x-text="feature"></span>
-        </div>
-    </section>
+    <CounterWidget props={map[string]any{"count": p.Home.Counter, "feature": p.Home.Feature}} />
 
     <section class="card">
         <h2>Leaderboard — a graph query</h2>

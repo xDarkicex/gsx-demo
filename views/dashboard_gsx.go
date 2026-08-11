@@ -24,7 +24,7 @@ func RenderDashboard(c *render.ComponentContext, p models.Page, children func(c 
 	if err := RenderStatCard(c, "Suggestions", p.Dashboard.Stats.Suggestions, "✨", nil); err != nil { return err }
 	c.WriteString(`</section>`)
 	c.WriteString(`<div`)
-	c.WriteString(" id=\"live-clock\"")
+	c.WriteString(" id=\"liveclock\"")
 	c.WriteString(" hx-get=\"/widgets/clock\"")
 	c.WriteString(" hx-trigger=\"load\"")
 	c.WriteString(" hx-swap=\"innerHTML\"")

@@ -26,6 +26,7 @@ type HomeData struct {
 	UserCount   int
 	FollowerTop []Follower // top users by follower count (graph query)
 	Feature     string     // value hydrated into the Alpine demo widget
+	Counter     int        // durable click counter (libraVDB)
 }
 
 // LoginData feeds the sign-in page. Error carries the flash banner

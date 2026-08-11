@@ -15,7 +15,7 @@ func Dashboard(p models.Page) {
         <StatCard label="Suggestions" value={p.Dashboard.Stats.Suggestions} icon="✨" />
     </section>
 
-    <div id="live-clock" hx-get="/widgets/clock" hx-trigger="load" hx-swap="innerHTML"></div>
+    <div id="liveclock" hx-get="/widgets/clock" hx-trigger="load" hx-swap="innerHTML"></div>
 
     <div class="grid-2">
         <Following page={p} />

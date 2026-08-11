@@ -56,6 +56,7 @@ func main() {
 	views.RegisterFollowing(gsxEngine)
 	views.RegisterSuggestedUsers(gsxEngine)
 	views.RegisterFollowButton(gsxEngine)
+	views.RegisterCounterWidget(gsxEngine)
 
 	// 3. ComponentRegistry — decorated components dispatched by
 	// name: @action (Follow), @async/@fallback/@oob (LiveClock),
@@ -63,6 +64,7 @@ func main() {
 	cr := render.NewComponentRegistry()
 	views.RegisterFollowButtonComponent(cr)
 	views.RegisterLiveClockComponent(cr)
+	views.RegisterCounterWidgetComponent(cr)
 	reg := render.New(
 		render.WithEngines(gsxEngine),
 		// gsx compiles to direct Go calls — the source bytes are
@@ -137,12 +139,18 @@ func home(reg *render.Registry) nanite.HandlerFunc {
 			fail(c, err)
 			return
 		}
+		clicks, err := db.Default.GetCounter(c.Request.Context())
+		if err != nil {
+			fail(c, err)
+			return
+		}
 		page := models.Page{
 			User: auth.CurrentUser(c),
 			Home: &models.HomeData{
 				UserCount:   n,
 				FollowerTop: top,
 				Feature:     "server-hydrated",
+				Counter:     clicks,
 			},
 		}
 		if err := renderPage(reg, c, "Home", page); err != nil {
