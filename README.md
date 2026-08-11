@@ -33,8 +33,9 @@ Demo account: **alice@demo.dev / demo123** (six seeded users, a FOLLOWS graph, `
 go run .            # or: go build -o gsx-demo . && ./gsx-demo
 ```
 
-Then open http://localhost:3000. The database is in-memory with a
-deterministic seed — every boot is a fresh world.
+Then open http://localhost:3000. The database lives in `data/`
+(seeded deterministically on first boot); follow clicks persist
+across restarts.
 
 ## The gsx views
 
