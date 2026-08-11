@@ -16,8 +16,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/xDarkicex/libravdb/libravdb"
 
@@ -32,6 +34,10 @@ var Default *DB
 type DB struct {
 	raw *libravdb.Database
 	gr  libravdb.Graph
+
+	// BootTime anchors temporal queries — the earliest retained
+	// version is the first write, which happens at boot.
+	BootTime time.Time
 }
 
 // Open opens (or creates) the demo database on disk. Follow
@@ -49,7 +55,7 @@ func Open(dir string) (*DB, error) {
 		raw.Close()
 		return nil, err
 	}
-	d := &DB{raw: raw, gr: gr}
+	d := &DB{raw: raw, gr: gr, BootTime: time.Now().UTC()}
 	if err := d.migrate(context.Background()); err != nil {
 		gr.Close()
 		raw.Close()
@@ -317,8 +323,26 @@ func str(v any) string {
 func atoi(v any) int {
 	switch n := v.(type) {
 	case int:
+		return n
+	case int8:
+		return int(n)
+	case int16:
+		return int(n)
+	case int32:
 		return int(n)
 	case int64:
+		return int(n)
+	case uint:
+		return int(n)
+	case uint8:
+		return int(n)
+	case uint16:
+		return int(n)
+	case uint32:
+		return int(n)
+	case uint64:
+		return int(n)
+	case float32:
 		return int(n)
 	case float64:
 		return int(n)
@@ -326,5 +350,197 @@ func atoi(v any) int {
 		i, _ := strconv.Atoi(n)
 		return i
 	}
+	// Unknown numeric type — fall back to rendering the value.
+	if s := fmt.Sprint(v); s != "" && s != "<nil>" {
+		if i, err := strconv.Atoi(s); err == nil {
+			return i
+		}
+	}
 	return 0
+}
+
+// --- dashboard surfaces ---
+
+// Todos returns the todos table rows, optionally filtered by a
+// title substring (LIKE).
+func (d *DB) Todos(ctx context.Context, filter string) ([]models.Todo, error) {
+	sql := `SELECT id, title, completed, priority, due_at, tags FROM todos`
+	params := libravdb.QueryParams{}
+	if filter != "" {
+		sql += ` WHERE title LIKE $1 ORDER BY priority, id`
+		params["1"] = "%" + filter + "%"
+	} else {
+		sql += ` ORDER BY priority, id`
+	}
+	res, err := d.raw.QueryWithParams(ctx, sql, params)
+	if err != nil {
+		return nil, err
+	}
+	var out []models.Todo
+	for _, r := range res.Results {
+		out = append(out, models.Todo{
+			ID:        str(r.Metadata["id"]),
+			Title:     str(r.Metadata["title"]),
+			Completed: r.Metadata["completed"] == true,
+			Priority:  atoi(r.Metadata["priority"]),
+			DueAt:     str(r.Metadata["due_at"]),
+			Tags:      fmt.Sprint(r.Metadata["tags"]),
+		})
+	}
+	return out, nil
+}
+
+// SaveTodo inserts a new todo row (parameterized CRUD).
+func (d *DB) SaveTodo(ctx context.Context, t *models.Todo) error {
+	_, err := d.raw.QueryWithParams(ctx,
+		`INSERT INTO todos (id, title, completed, priority, due_at, tags)
+		 VALUES ($1, $2, $3, $4, $5, $6)`,
+		libravdb.QueryParams{
+			"1": t.ID, "2": t.Title, "3": t.Completed, "4": t.Priority,
+			"5": t.DueAt, "6": t.Tags,
+		})
+	return err
+}
+
+// ToggleTodo flips a todo's completed flag. NOT in UPDATE SET is
+// unsupported in libraVDB yet, so this is read-modify-write.
+func (d *DB) ToggleTodo(ctx context.Context, id string) error {
+	res, err := d.raw.QueryWithParams(ctx,
+		`SELECT completed FROM todos WHERE id = $1`,
+		libravdb.QueryParams{"1": id})
+	if err != nil {
+		return err
+	}
+	if len(res.Results) == 0 {
+		return nil
+	}
+	now := res.Results[0].Metadata["completed"] == true
+	_, err = d.raw.QueryWithParams(ctx,
+		`UPDATE todos SET completed = $1 WHERE id = $2`,
+		libravdb.QueryParams{"1": !now, "2": id})
+	return err
+}
+
+// DeleteTodo removes a todo row.
+func (d *DB) DeleteTodo(ctx context.Context, id string) error {
+	_, err := d.raw.QueryWithParams(ctx,
+		`DELETE FROM todos WHERE id = $1`,
+		libravdb.QueryParams{"1": id})
+	return err
+}
+
+// TodoCount returns the number of todos (overview stat).
+func (d *DB) TodoCount(ctx context.Context) (int, error) {
+	res, err := d.raw.Query(ctx, "SELECT COUNT(*) AS n FROM todos")
+	if err != nil {
+		return 0, err
+	}
+	if len(res.Results) == 0 {
+		return 0, nil
+	}
+	return atoi(res.Results[0].Metadata["n"]), nil
+}
+
+// PriorityBars returns todos per priority — the overview chart
+// (GROUP BY aggregate).
+func (d *DB) PriorityBars(ctx context.Context) ([]models.Bar, error) {
+	res, err := d.raw.Query(ctx,
+		`SELECT priority, COUNT(*) AS n FROM todos GROUP BY priority ORDER BY priority`)
+	if err != nil {
+		return nil, err
+	}
+	var out []models.Bar
+	for _, r := range res.Results {
+		out = append(out, models.Bar{
+			Label: "P" + str(r.Metadata["priority"]),
+			Count: atoi(r.Metadata["n"]),
+		})
+	}
+	return out, nil
+}
+
+// Versions runs a temporal VERSIONS OF query over a table for the
+// given time range and returns the version history.
+func (d *DB) Versions(ctx context.Context, table, start, end string) ([]models.Version, error) {
+	res, err := d.raw.Query(ctx, fmt.Sprintf(
+		`SELECT id, version, title, completed, version_start, version_end
+		 FROM VERSIONS OF %s BETWEEN TIMESTAMP '%s' AND TIMESTAMP '%s'
+		 ORDER BY id, version`, table, start, end))
+	if err != nil {
+		return nil, err
+	}
+	var out []models.Version
+	for _, r := range res.Results {
+		out = append(out, models.Version{
+			ID:           str(r.Metadata["id"]),
+			Version:      atoi(r.Metadata["version"]),
+			Title:        str(r.Metadata["title"]),
+			Completed:    r.Metadata["completed"] == true,
+			// version_start/end come back as time.Time values —
+			// fmt.Sprint renders them.
+			VersionStart: fmt.Sprint(r.Metadata["version_start"]),
+			VersionEnd:   fmt.Sprint(r.Metadata["version_end"]),
+		})
+	}
+	return out, nil
+}
+
+// RunSQL executes arbitrary SQL and returns a renderable result:
+// columns + stringified rows, or the error text.
+func (d *DB) RunSQL(ctx context.Context, sql string) ([]string, [][]string, error) {
+	res, err := d.raw.Query(ctx, sql)
+	if err != nil {
+		return nil, nil, err
+	}
+	// Column order from the result metadata.
+	var cols []string
+	for _, c := range res.Columns {
+		cols = append(cols, c)
+	}
+	if len(cols) == 0 {
+		// Fall back to sorted metadata keys when the executor
+		// didn't report columns.
+		seen := map[string]bool{}
+		for _, r := range res.Results {
+			for k := range r.Metadata {
+				if !seen[k] {
+					seen[k] = true
+					cols = append(cols, k)
+				}
+			}
+		}
+		sort.Strings(cols)
+	}
+	var rows [][]string
+	for _, r := range res.Results {
+		var row []string
+		for _, c := range cols {
+			row = append(row, fmt.Sprint(r.Metadata[c]))
+		}
+		rows = append(rows, row)
+	}
+	return cols, rows, nil
+}
+
+// Edges returns every FOLLOWS edge (graph page).
+func (d *DB) Edges(ctx context.Context) ([]models.Edge, error) {
+	res, err := d.raw.Query(ctx,
+		`SELECT src.id, tgt.id FROM users src JOIN MATCH (src)-[r:FOLLOWS]->(tgt)`)
+	if err != nil {
+		return nil, err
+	}
+	var out []models.Edge
+	for _, r := range res.Results {
+		i := strings.LastIndexByte(r.ID, '|')
+		if i <= 0 || i+1 >= len(r.ID) {
+			continue
+		}
+		out = append(out, models.Edge{From: r.ID[:i], To: r.ID[i+1:]})
+	}
+	return out, nil
+}
+
+// RawQuery exposes the raw result for debugging.
+func (d *DB) RawQuery(ctx context.Context, sql string) (*libravdb.SearchResults, error) {
+	return d.raw.Query(ctx, sql)
 }

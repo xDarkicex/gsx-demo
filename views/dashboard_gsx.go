@@ -5,49 +5,12 @@ package views
 import (
 "fmt"
 "html"
-"github.com/xDarkicex/gsx-demo/models"
 "time"
 
 "github.com/xDarkicex/nanite-gsx"
 "github.com/xDarkicex/nanite-render"
 )
 
-type Dashboard struct{}
-
-
-func RenderDashboard(c *render.ComponentContext, p models.Page, children func(c *render.ComponentContext) error) error {
-	c.WriteString(`<section`)
-	c.WriteString(" class=\"cards\"")
-	c.WriteString(">")
-	if err := RenderStatCard(c, "Users", p.Dashboard.Stats.Users, "👥", nil); err != nil { return err }
-	if err := RenderStatCard(c, "Following", p.Dashboard.Stats.Following, "→", nil); err != nil { return err }
-	if err := RenderStatCard(c, "Suggestions", p.Dashboard.Stats.Suggestions, "✨", nil); err != nil { return err }
-	c.WriteString(`</section>`)
-	c.WriteString(`<div`)
-	c.WriteString(" id=\"liveclock\"")
-	c.WriteString(" hx-get=\"/widgets/clock\"")
-	c.WriteString(" hx-trigger=\"load\"")
-	c.WriteString(" hx-swap=\"innerHTML\"")
-	c.WriteString(">")
-	c.WriteString(`</div>`)
-	c.WriteString(`<div`)
-	c.WriteString(" class=\"grid-2\"")
-	c.WriteString(">")
-	if err := RenderFollowing(c, p, nil); err != nil { return err }
-	if err := RenderSuggestedUsers(c, p, nil); err != nil { return err }
-	c.WriteString(`</div>`)
-return nil
-}
-
-func RegisterDashboard(e *gsx.Engine) {
-	e.Register("Dashboard", func(c *render.ComponentContext, data any) error {
-	return RenderDashboard(c, data.(models.Page), nil)
-	})
-}
-
-
-
-type StatCard struct{}
 
 type StatCardProps struct {
 	Label string `nanite:"label"`
@@ -55,15 +18,16 @@ type StatCardProps struct {
 	Icon string `nanite:"icon"`
 }
 
+type StatCard struct{}
+
+
 func RenderStatCard(c *render.ComponentContext, label string, value int, icon string, children func(c *render.ComponentContext) error) error {
 	c.WriteString(`<div`)
-	c.WriteString(" class=\"card stat-card\"")
+	c.WriteString(" class=\"uk-card uk-card-default uk-card-body uk-card-small\"")
 	c.WriteString(">")
-	c.WriteString(`<span`)
-	c.WriteString(" class=\"stat-icon\"")
+	c.WriteString(`<div`)
+	c.WriteString(" class=\"uk-flex uk-flex-middle uk-flex-between\"")
 	c.WriteString(">")
-	c.WriteString(html.EscapeString(fmt.Sprint(icon)))
-	c.WriteString(`</span>`)
 	c.WriteString(`<div>`)
 	c.WriteString(`<div`)
 	c.WriteString(" class=\"stat-value\"")
@@ -71,10 +35,16 @@ func RenderStatCard(c *render.ComponentContext, label string, value int, icon st
 	c.WriteString(html.EscapeString(fmt.Sprint(value)))
 	c.WriteString(`</div>`)
 	c.WriteString(`<div`)
-	c.WriteString(" class=\"stat-label muted\"")
+	c.WriteString(" class=\"muted small\"")
 	c.WriteString(">")
 	c.WriteString(html.EscapeString(fmt.Sprint(label)))
 	c.WriteString(`</div>`)
+	c.WriteString(`</div>`)
+	c.WriteString(`<span`)
+	c.WriteString(" class=\"stat-icon\"")
+	c.WriteString(">")
+	c.WriteString(html.EscapeString(fmt.Sprint(icon)))
+	c.WriteString(`</span>`)
 	c.WriteString(`</div>`)
 	c.WriteString(`</div>`)
 return nil
@@ -164,116 +134,6 @@ return nil
 func RegisterClockSkeleton(e *gsx.Engine) {
 	e.Register("ClockSkeleton", func(c *render.ComponentContext, data any) error {
 	return RenderClockSkeleton(c, nil)
-	})
-}
-
-
-
-type Following struct{}
-
-func RenderFollowing(c *render.ComponentContext, page models.Page, children func(c *render.ComponentContext) error) error {
-	c.WriteString(`<section`)
-	c.WriteString(" class=\"card\"")
-	c.WriteString(">")
-	c.WriteString(`<h2>`)
-	c.WriteString(`Following (`)
-	c.WriteString(html.EscapeString(fmt.Sprint(len(page.Dashboard.Following))))
-	c.WriteString(`)`)
-	c.WriteString(`<button`)
-	c.WriteString(" class=\"btn btn-sm\"")
-	c.WriteString(" hx-get=\"/dashboard/partial/following\"")
-	c.WriteString(" hx-target=\"#following\"")
-	c.WriteString(" hx-swap=\"outerHTML\"")
-	c.WriteString(">")
-	c.WriteString(`⟳ Refresh
-            `)
-	c.WriteString(`</button>`)
-	c.WriteString(`</h2>`)
-	c.WriteString(`<ul`)
-	c.WriteString(" class=\"people-list\"")
-	c.WriteString(">")
-	if len(page.Dashboard.Following) == 0 {
-		c.WriteString(`<li`)
-		c.WriteString(" class=\"muted\"")
-		c.WriteString(">")
-		c.WriteString(`Nobody yet — try following someone.`)
-		c.WriteString(`</li>`)
-	}
-	for _, f := range page.Dashboard.Following {
-		c.WriteString(`<li>`)
-		c.WriteString(`<strong>`)
-		c.WriteString(html.EscapeString(fmt.Sprint(f.Name)))
-		c.WriteString(`</strong>`)
-		c.WriteString(`<span`)
-		c.WriteString(" class=\"muted\"")
-		c.WriteString(">")
-		c.WriteString(`@`)
-		c.WriteString(html.EscapeString(fmt.Sprint(f.ID)))
-		c.WriteString(`</span>`)
-		c.WriteString(`</li>`)
-	}
-	c.WriteString(`</ul>`)
-	c.WriteString(`</section>`)
-return nil
-}
-
-func RegisterFollowing(e *gsx.Engine) {
-	e.Register("Following", func(c *render.ComponentContext, data any) error {
-	return RenderFollowing(c, data.(models.Page), nil)
-	})
-}
-
-
-
-type SuggestedUsers struct{}
-
-func RenderSuggestedUsers(c *render.ComponentContext, page models.Page, children func(c *render.ComponentContext) error) error {
-	c.WriteString(`<section`)
-	c.WriteString(" class=\"card\"")
-	c.WriteString(">")
-	c.WriteString(`<h2>`)
-	c.WriteString(`Who to follow`)
-	c.WriteString(`</h2>`)
-	c.WriteString(`<ul`)
-	c.WriteString(" class=\"people-list\"")
-	c.WriteString(">")
-	if len(page.Dashboard.Suggestions) == 0 {
-		c.WriteString(`<li`)
-		c.WriteString(" class=\"muted\"")
-		c.WriteString(">")
-		c.WriteString(`No suggestions — you`)
-		c.WriteString(`'ve met everyone!`)
-		c.WriteString(`</li>`)
-	}
-	for _, s := range page.Dashboard.Suggestions {
-		c.WriteString(`<li>`)
-		c.WriteString(`<div`)
-		c.WriteString(" class=\"suggest-info\"")
-		c.WriteString(">")
-		c.WriteString(`<strong>`)
-		c.WriteString(html.EscapeString(fmt.Sprint(s.Name)))
-		c.WriteString(`</strong>`)
-		c.WriteString(`<span`)
-		c.WriteString(" class=\"muted\"")
-		c.WriteString(">")
-		c.WriteString(`@`)
-		c.WriteString(html.EscapeString(fmt.Sprint(s.ID)))
-		c.WriteString(` · `)
-		c.WriteString(html.EscapeString(fmt.Sprint(s.Mutual)))
-		c.WriteString(` mutual`)
-		c.WriteString(`</span>`)
-		c.WriteString(`</div>`)
-		if err := RenderFollowButton(c, map[string]any{"target_id": s.ID, "followed": s.Followed}, nil); err != nil { return err }
-		c.WriteString(`</li>`)
-	}
-	c.WriteString(`</ul>`)
-	c.WriteString(`</section>`)
-return nil
-}
-
-func RegisterSuggestedUsers(e *gsx.Engine) {
-	e.Register("SuggestedUsers", func(c *render.ComponentContext, data any) error {
-	return RenderSuggestedUsers(c, data.(models.Page), nil)
 	})
 }
 

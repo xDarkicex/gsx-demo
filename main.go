@@ -12,10 +12,12 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -49,14 +51,18 @@ func main() {
 	views.RegisterNavbar(gsxEngine)
 	views.RegisterHome(gsxEngine)
 	views.RegisterLogin(gsxEngine)
-	views.RegisterDashboard(gsxEngine)
 	views.RegisterStatCard(gsxEngine)
 	views.RegisterLiveClock(gsxEngine)
 	views.RegisterClockSkeleton(gsxEngine)
-	views.RegisterFollowing(gsxEngine)
-	views.RegisterSuggestedUsers(gsxEngine)
 	views.RegisterFollowButton(gsxEngine)
 	views.RegisterCounterWidget(gsxEngine)
+	views.RegisterDashLayout(gsxEngine)
+	views.RegisterOverview(gsxEngine)
+	views.RegisterEditor(gsxEngine)
+	views.RegisterSQLPage(gsxEngine)
+	views.RegisterTemporalPage(gsxEngine)
+	views.RegisterGraphPage(gsxEngine)
+	views.RegisterSettingsPage(gsxEngine)
 
 	// 3. ComponentRegistry — decorated components dispatched by
 	// name: @action (Follow), @async/@fallback/@oob (LiveClock),
@@ -86,7 +92,18 @@ func main() {
 
 	// The dashboard group is guarded by session middleware.
 	dash := r.Group("/dashboard", auth.RequireUser)
-	dash.Get("/", dashboard(reg))
+	dash.Get("/", overview(reg))
+	dash.Get("/editor", editor(reg))
+	dash.Post("/editor/save", editorSave(reg))
+	dash.Post("/editor/toggle", editorToggle(reg))
+	dash.Post("/editor/delete", editorDelete(reg))
+	dash.Get("/sql", sqlPage(reg))
+	dash.Post("/sql/run", sqlRun(reg))
+	dash.Get("/temporal", temporal(reg))
+	dash.Get("/graph", graph(reg))
+	dash.Post("/graph/add", graphAdd(reg))
+	dash.Post("/graph/remove", graphRemove(reg))
+	dash.Get("/settings", settings(reg))
 
 	// Colocated server actions (@action in .gsx) — one mount point.
 	r.Post("/_nano/action/*", func(c *nanite.Context) {
@@ -219,8 +236,285 @@ func logout(c *nanite.Context) {
 	c.Redirect(http.StatusFound, "/")
 }
 
-// dashboard builds the authenticated view: graph-derived stats,
-// the follow graph, and 2-hop suggestions.
+// renderDash renders a page inside the DashLayout sidebar shell.
+func renderDash(reg *render.Registry, c *nanite.Context, view string, data any) error {
+	return nano.Page(reg, c).
+		Engine(render.CustomEngine("gsx")).
+		Layout("DashLayout").
+		View(view).
+		With(data).
+		Render()
+}
+
+// dashBase returns the authenticated page skeleton with the nav
+// item active.
+func dashBase(c *nanite.Context, active string) models.Page {
+	return models.Page{
+		User: auth.CurrentUser(c),
+		Dash: &models.DashData{Active: active},
+	}
+}
+
+// overview renders the dashboard home: stat cards, the priority
+// chart, and the live clock.
+func overview(reg *render.Registry) nanite.HandlerFunc {
+	return func(c *nanite.Context) {
+		ctx := c.Request.Context()
+		u := auth.CurrentUser(c)
+
+		users, err := db.Default.Count(ctx)
+		if err != nil {
+			fail(c, err)
+			return
+		}
+		edges, err := db.Default.EdgeCount(ctx)
+		if err != nil {
+			fail(c, err)
+			return
+		}
+		todos, err := db.Default.TodoCount(ctx)
+		if err != nil {
+			fail(c, err)
+			return
+		}
+		clicks, err := db.Default.GetCounter(ctx)
+		if err != nil {
+			fail(c, err)
+			return
+		}
+		bars, err := db.Default.PriorityBars(ctx)
+		if err != nil {
+			fail(c, err)
+			return
+		}
+		following, err := db.Default.Following(ctx, u.ID)
+		if err != nil {
+			fail(c, err)
+			return
+		}
+		maxBar := 0
+		for _, b := range bars {
+			if b.Count > maxBar {
+				maxBar = b.Count
+			}
+		}
+
+		page := dashBase(c, "overview")
+		page.Dash.Stats = models.Stats{
+			Users: users, Following: edges, Todos: todos, Clicks: clicks,
+		}
+		page.Dash.Bars = bars
+		page.Dash.MaxBar = maxBar
+		page.Dash.Following = following
+		if err := renderDash(reg, c, "Overview", page); err != nil {
+			fail(c, err)
+		}
+	}
+}
+
+// editor renders the Table Editor (todos CRUD).
+func editor(reg *render.Registry) nanite.HandlerFunc {
+	return func(c *nanite.Context) {
+		ctx := c.Request.Context()
+		filter := c.Query("q")
+		todos, err := db.Default.Todos(ctx, filter)
+		if err != nil {
+			fail(c, err)
+			return
+		}
+		page := dashBase(c, "editor")
+		page.Dash.Todos = todos
+		page.Dash.TodoFilter = filter
+		if err := renderDash(reg, c, "Editor", page); err != nil {
+			fail(c, err)
+		}
+	}
+}
+
+// editorSave inserts a todo (PRG — mutate, redirect back).
+func editorSave(reg *render.Registry) nanite.HandlerFunc {
+	return func(c *nanite.Context) {
+		t := &models.Todo{
+			ID:        "todo-" + randHex(6),
+			Title:     c.FormValue("title"),
+			Priority:  parsePriority(c.FormValue("priority")),
+			DueAt:     c.FormValue("due_at"),
+			Tags:      c.FormValue("tags"),
+			Completed: c.FormValue("completed") == "true",
+		}
+		if err := db.Default.SaveTodo(c.Request.Context(), t); err != nil {
+			fail(c, err)
+			return
+		}
+		c.Redirect(http.StatusFound, "/dashboard/editor")
+	}
+}
+
+// editorToggle flips a todo's completed flag.
+func editorToggle(reg *render.Registry) nanite.HandlerFunc {
+	return func(c *nanite.Context) {
+		if err := db.Default.ToggleTodo(c.Request.Context(), c.FormValue("id")); err != nil {
+			fail(c, err)
+			return
+		}
+		c.Redirect(http.StatusFound, "/dashboard/editor")
+	}
+}
+
+// editorDelete removes a todo.
+func editorDelete(reg *render.Registry) nanite.HandlerFunc {
+	return func(c *nanite.Context) {
+		if err := db.Default.DeleteTodo(c.Request.Context(), c.FormValue("id")); err != nil {
+			fail(c, err)
+			return
+		}
+		c.Redirect(http.StatusFound, "/dashboard/editor")
+	}
+}
+
+// sqlPage renders the SQL editor (results from the last run).
+func sqlPage(reg *render.Registry) nanite.HandlerFunc {
+	return func(c *nanite.Context) {
+		page := dashBase(c, "sql")
+		page.Dash.SQLText = "SELECT id, title, completed, priority FROM todos ORDER BY priority"
+		if err := renderDash(reg, c, "SQLPage", page); err != nil {
+			fail(c, err)
+		}
+	}
+}
+
+// sqlRun executes the submitted SQL and re-renders with results.
+func sqlRun(reg *render.Registry) nanite.HandlerFunc {
+	return func(c *nanite.Context) {
+		text := c.FormValue("sql")
+		cols, rows, err := db.Default.RunSQL(c.Request.Context(), text)
+		page := dashBase(c, "sql")
+		page.Dash.SQLText = text
+		if err != nil {
+			page.Dash.SQLError = err.Error()
+		} else {
+			page.Dash.SQLColumns = cols
+			page.Dash.SQLRows = rows
+		}
+		if err := renderDash(reg, c, "SQLPage", page); err != nil {
+			fail(c, err)
+		}
+	}
+}
+
+// temporal renders the VERSIONS OF explorer.
+func temporal(reg *render.Registry) nanite.HandlerFunc {
+	return func(c *nanite.Context) {
+		ctx := c.Request.Context()
+		table := c.Query("table")
+		if table == "" {
+			table = "todos"
+		}
+		start := c.Query("start")
+		end := c.Query("end")
+		if start == "" {
+			// Default: from boot (the first write — the retention
+			// floor) to an hour from now.
+			start = db.Default.BootTime.Add(-time.Second).Format(time.RFC3339)
+		}
+		if end == "" {
+			end = time.Now().UTC().Add(time.Hour).Format(time.RFC3339)
+		}
+		var versions []models.Version
+		var terr error
+		if table != "" {
+			versions, terr = db.Default.Versions(ctx, table, start, end)
+		}
+		page := dashBase(c, "temporal")
+		page.Dash.TemporalTable = table
+		page.Dash.TemporalStart = start
+		page.Dash.TemporalEnd = end
+		page.Dash.Versions = versions
+		if terr != nil {
+			page.Dash.SQLError = terr.Error()
+		}
+		if err := renderDash(reg, c, "TemporalPage", page); err != nil {
+			fail(c, err)
+		}
+	}
+}
+
+// graph renders the FOLLOWS graph explorer.
+func graph(reg *render.Registry) nanite.HandlerFunc {
+	return func(c *nanite.Context) {
+		ctx := c.Request.Context()
+		u := auth.CurrentUser(c)
+		edges, err := db.Default.Edges(ctx)
+		if err != nil {
+			fail(c, err)
+			return
+		}
+		following, err := db.Default.Following(ctx, u.ID)
+		if err != nil {
+			fail(c, err)
+			return
+		}
+		followingSet := make(map[string]bool, len(following))
+		for _, f := range following {
+			followingSet[f.ID] = true
+		}
+		suggestions, err := db.Default.Suggest(ctx, u.ID)
+		if err != nil {
+			fail(c, err)
+			return
+		}
+		var fresh []models.Suggestion
+		for _, s := range suggestions {
+			if !followingSet[s.ID] {
+				fresh = append(fresh, s)
+			}
+		}
+		page := dashBase(c, "graph")
+		page.Dash.Edges = edges
+		page.Dash.Following = following
+		page.Dash.Suggestions = fresh
+		if err := renderDash(reg, c, "GraphPage", page); err != nil {
+			fail(c, err)
+		}
+	}
+}
+
+// graphAdd creates a FOLLOWS edge (GRAPH_EDGES INSERT).
+func graphAdd(reg *render.Registry) nanite.HandlerFunc {
+	return func(c *nanite.Context) {
+		from, to := c.FormValue("from"), c.FormValue("to")
+		if from != "" && to != "" {
+			if err := db.Default.Follow(c.Request.Context(), from, to); err != nil {
+				fail(c, err)
+				return
+			}
+		}
+		c.Redirect(http.StatusFound, "/dashboard/graph")
+	}
+}
+
+// graphRemove deletes a FOLLOWS edge (GRAPH_EDGES DELETE).
+func graphRemove(reg *render.Registry) nanite.HandlerFunc {
+	return func(c *nanite.Context) {
+		if err := db.Default.Unfollow(c.Request.Context(), c.FormValue("from"), c.FormValue("to")); err != nil {
+			fail(c, err)
+			return
+		}
+		c.Redirect(http.StatusFound, "/dashboard/graph")
+	}
+}
+
+// settings renders the project settings page.
+func settings(reg *render.Registry) nanite.HandlerFunc {
+	return func(c *nanite.Context) {
+		page := dashBase(c, "settings")
+		if err := renderDash(reg, c, "SettingsPage", page); err != nil {
+			fail(c, err)
+		}
+	}
+}
+
+// oldDashboard is kept for reference — the new pages above replace it.
 func dashboard(reg *render.Registry) nanite.HandlerFunc {
 	return func(c *nanite.Context) {
 		u := auth.CurrentUser(c)
@@ -318,4 +612,26 @@ func followingPartial(reg *render.Registry) nanite.HandlerFunc {
 			fail(c, err)
 		}
 	}
+}
+
+// randHex returns n random hex chars (for todo ids).
+func randHex(n int) string {
+	const hex = "0123456789abcdef"
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		return "000000"
+	}
+	for i := range b {
+		b[i] = hex[b[i]&0xf]
+	}
+	return string(b)
+}
+
+// parsePriority coerces a form priority to 1..5, defaulting to 3.
+func parsePriority(s string) int {
+	p := 3
+	if n, err := strconv.Atoi(s); err == nil && n >= 1 && n <= 5 {
+		p = n
+	}
+	return p
 }
