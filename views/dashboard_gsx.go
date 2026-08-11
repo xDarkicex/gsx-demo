@@ -101,11 +101,14 @@ func RenderLiveClock(c *render.ComponentContext, children func(c *render.Compone
 	c.WriteString(" class=\"muted\"")
 	c.WriteString(">")
 	c.WriteString(`(`)
-	c.WriteString(`async + OOB)`)
+	c.WriteString(`async + OOB + Alpine tick)`)
 	c.WriteString(`</span>`)
 	c.WriteString(`</h2>`)
 	c.WriteString(`<p`)
 	c.WriteString(" class=\"clock-time\"")
+	c.WriteHydrateProps("x-data", map[string]any{"now": time.Now().Format("15:04:05")})
+	c.WriteString(" x-init=\"setInterval(() => now = new Date().toLocaleTimeString('en-GB', {hour12: false}), 1000)\"")
+	c.WriteString(" x-text=\"now\"")
 	c.WriteString(">")
 	c.WriteString(html.EscapeString(fmt.Sprint(time.Now().Format("15:04:05"))))
 	c.WriteString(`</p>`)
@@ -118,7 +121,9 @@ func RenderLiveClock(c *render.ComponentContext, children func(c *render.Compone
 	c.WriteString(`<code>`)
 	c.WriteString(`hx-swap-oob`)
 	c.WriteString(`</code>`)
-	c.WriteString(`.
+	c.WriteString(`,`)
+	c.WriteString(` and the time ticks via
+            Alpine from the server-hydrated start value.
         `)
 	c.WriteString(`</p>`)
 	c.WriteString(`</div>`)
