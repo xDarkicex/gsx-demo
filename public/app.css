@@ -198,3 +198,104 @@ code {
 
 /* Footer */
 .footer { text-align: center; padding: 30px 20px 40px; border-top: 1px solid var(--border); }
+
+/* ============ gsx-studio dashboard ============ */
+
+/* uikit dark theme overrides — cards, tables, nav, forms */
+.uk-card-default {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.uk-card-body { color: var(--text); }
+.uk-card-header { border-bottom: 1px solid var(--border); color: var(--text); }
+
+.uk-table { color: var(--text); }
+.uk-table th { color: var(--muted); text-transform: uppercase; font-size: 0.78rem; letter-spacing: 0.05em; }
+.uk-table-divider > :not(:first-child) > tr, .uk-table-divider > :not(:first-child) > tr > td { border-top: 1px solid var(--border); }
+.uk-table-hover tbody tr:hover { background: var(--panel-2); }
+
+.uk-nav-default > li > a { color: var(--muted); border-radius: 8px; padding: 8px 10px; }
+.uk-nav-default > li > a:hover { color: var(--text); background: var(--panel-2); }
+.uk-nav-default > li.uk-active > a { color: var(--accent); background: rgba(56, 189, 248, 0.1); }
+.uk-nav-header { color: var(--muted) !important; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.08em; }
+
+.uk-input, .uk-textarea, .uk-select {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.uk-input:focus, .uk-textarea:focus { border-color: var(--accent); color: var(--text); }
+.uk-input::placeholder, .uk-textarea::placeholder { color: var(--muted); }
+
+.uk-button-default {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.uk-button-default:hover { border-color: var(--accent); color: var(--text); }
+.uk-button-primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #062033; }
+.uk-button-primary:hover { filter: brightness(1.1); }
+.uk-button-danger { background: rgba(248, 113, 113, 0.15); border: 1px solid rgba(248, 113, 113, 0.4); color: var(--danger); }
+.uk-button-danger:hover { background: rgba(248, 113, 113, 0.25); color: var(--danger); }
+
+.uk-label { background: var(--panel-2); border: 1px solid var(--border); color: var(--muted); }
+.uk-label-success { background: rgba(74, 222, 128, 0.15); border: 1px solid rgba(74, 222, 128, 0.4); color: var(--ok); }
+.uk-badge { background: var(--panel-2); border: 1px solid var(--border); color: var(--accent); }
+
+.uk-alert { border-radius: 10px; }
+.uk-alert-danger { background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.4); color: var(--danger); }
+.uk-alert-success { background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.4); color: var(--ok); }
+.uk-alert-danger pre, .uk-alert-danger code { color: var(--danger); }
+
+.uk-divider-small::after { border-top: 1px solid var(--border); }
+.uk-list-divider > :nth-child(n+2) { border-top: 1px solid var(--border); }
+.uk-nav-divider { border-top: 1px solid var(--border); }
+
+/* dashboard shell */
+.dash-body { background: var(--bg); }
+.dash-shell { min-height: calc(100vh - 60px); }
+.dash-sidebar { padding: 20px; }
+.dash-sidebar .uk-card { border-radius: 14px; }
+.dash-brand { font-weight: 800; font-size: 1.15rem; color: var(--accent); letter-spacing: -0.02em; }
+.dash-main { padding-bottom: 60px; }
+.dash-main h1, .dash-main h2, .dash-main h3, .dash-main h4 { color: var(--text); }
+
+/* stat cards */
+.stat-value { font-size: 1.7rem; font-weight: 800; color: var(--text); }
+.stat-icon { font-size: 1.6rem; }
+
+/* priority bars */
+.bars { display: flex; flex-direction: column; gap: 10px; }
+.bar-row { display: flex; align-items: center; gap: 12px; }
+.bar-label { width: 30px; font-size: 0.85rem; }
+.bar-track {
+  flex: 1;
+  height: 14px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+.bar-count { width: 24px; text-align: right; font-weight: 700; color: var(--text); }
+
+/* clock */
+.clock-time { font-size: 2.4rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.skeleton-line {
+  color: transparent;
+  background: linear-gradient(90deg, var(--panel-2) 25%, var(--border) 50%, var(--panel-2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 8px;
+  width: 60%;
+  margin: 0 auto;
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+.uk-font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; }
