@@ -79,9 +79,9 @@ collections API after migration:
 - Traversal: `SELECT tgt.id, tgt.name FROM users src JOIN MATCH
   (src)-[r:FOLLOWS]->(tgt) WHERE src.id = $1` — projections and
   source filtering included.
-- 2-hop suggestions: two single-hop traversals aggregated in Go
-  (chained `JOIN MATCH ... JOIN MATCH` target filtering is not
-  reliable yet — a known libraVDB quirk).
+- 2-hop suggestions: one chained `JOIN MATCH (me)-[f1]->(mid)
+  JOIN MATCH (mid)-[f2]->(tgt)` with `WHERE` + `GROUP BY` — mutual
+  counts, projections, and terminal filtering all native.
 - Persistence: the catalog, records, and graph WAL survive reopen;
   the graph reattaches with `col.SetGraph(gr)` and the WAL replays
   the edges — follow clicks persist across restarts, and the server

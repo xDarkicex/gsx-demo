@@ -16,7 +16,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -213,47 +212,28 @@ func (d *DB) Followers(ctx context.Context) ([]models.Follower, error) {
 }
 
 // Suggest returns users followed by the people I follow (2 hops on
-// the FOLLOWS graph), ranked by mutual connections. The handler
-// excludes people already followed.
-//
-// The traversal is two single-hop JOIN MATCH queries (chained
-// JOIN MATCH target filtering is not reliable yet in libraVDB);
-// the mutual counts are aggregated in Go.
+// the FOLLOWS graph), ranked by mutual connections. A single
+// chained JOIN MATCH traversal with projections and filtering.
+// The handler excludes people already followed.
 func (d *DB) Suggest(ctx context.Context, me string) ([]models.Suggestion, error) {
 	res, err := d.raw.QueryWithParams(ctx,
-		`SELECT mid.id FROM users me
+		`SELECT tgt.id, tgt.name, COUNT(*) AS mutual FROM users me
 		 JOIN MATCH (me)-[f1:FOLLOWS]->(mid)
-		 WHERE me.id = $1`,
+		 JOIN MATCH (mid)-[f2:FOLLOWS]->(tgt)
+		 WHERE me.id = $1 AND tgt.id <> $1
+		 GROUP BY tgt.id, tgt.name ORDER BY mutual DESC`,
 		libravdb.QueryParams{"1": me})
 	if err != nil {
 		return nil, err
 	}
-
-	mutual := make(map[string]int)
-	for _, r := range res.Results {
-		mid := str(r.Metadata["id"])
-		hop, err := d.raw.QueryWithParams(ctx,
-			`SELECT tgt.id, tgt.name FROM users mid
-			 JOIN MATCH (mid)-[f2:FOLLOWS]->(tgt)
-			 WHERE mid.id = $1 AND tgt.id <> $1`,
-			libravdb.QueryParams{"1": mid})
-		if err != nil {
-			return nil, err
-		}
-		for _, t := range hop.Results {
-			mutual[str(t.Metadata["id"])]++
-		}
-	}
-
 	var out []models.Suggestion
-	for id, n := range mutual {
-		u, err := d.UserByID(ctx, id)
-		if err != nil || u == nil {
-			continue
-		}
-		out = append(out, models.Suggestion{ID: u.ID, Name: u.Name, Mutual: n})
+	for _, r := range res.Results {
+		out = append(out, models.Suggestion{
+			ID:     str(r.Metadata["id"]),
+			Name:   str(r.Metadata["name"]),
+			Mutual: atoi(r.Metadata["mutual"]),
+		})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Mutual > out[j].Mutual })
 	return out, nil
 }
 
