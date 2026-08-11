@@ -2,15 +2,11 @@
 // StatCard is a plain composable — props are typed parameters,
 // compiled to direct function calls.
 func StatCard(label string, value int, icon string) {
-    <div class="uk-card uk-card-default uk-card-body uk-card-small">
-        <div class="uk-flex uk-flex-middle uk-flex-between">
-            <div>
-                <div class="stat-value">{value}</div>
-                <div class="muted small">{label}</div>
-            </div>
-            <span class="stat-icon">{icon}</span>
-        </div>
-    </div>
+    <article class="stat-card">
+        <div class="stat-card-top"><span class="stat-icon">{icon}</span><span class="stat-trend">+ live</span></div>
+        <div class="stat-value">{value}</div>
+        <div class="stat-label">{label}</div>
+    </article>
 }
 
 // LiveClock renders in a worker goroutine (Async); the finished

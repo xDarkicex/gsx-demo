@@ -320,6 +320,21 @@ func str(v any) string {
 	return s
 }
 
+// boolValue normalizes SQL projection values. libraVDB returns boolean
+// projections as strings ("true"/"false"), while inserts and parameters can
+// still arrive as native bools.
+func boolValue(v any) bool {
+	switch b := v.(type) {
+	case bool:
+		return b
+	case string:
+		parsed, err := strconv.ParseBool(strings.TrimSpace(b))
+		return err == nil && parsed
+	default:
+		return strings.EqualFold(strings.TrimSpace(fmt.Sprint(v)), "true")
+	}
+}
+
 func atoi(v any) int {
 	switch n := v.(type) {
 	case int:
@@ -381,7 +396,7 @@ func (d *DB) Todos(ctx context.Context, filter string) ([]models.Todo, error) {
 		out = append(out, models.Todo{
 			ID:        str(r.Metadata["id"]),
 			Title:     str(r.Metadata["title"]),
-			Completed: r.Metadata["completed"] == true,
+			Completed: boolValue(r.Metadata["completed"]),
 			Priority:  atoi(r.Metadata["priority"]),
 			DueAt:     str(r.Metadata["due_at"]),
 			Tags:      fmt.Sprint(r.Metadata["tags"]),
@@ -405,7 +420,16 @@ func (d *DB) SaveTodo(ctx context.Context, t *models.Todo) error {
 // ToggleTodo flips a todo's completed flag — a single
 // parameterized UPDATE with a unary NOT in the SET expression.
 func (d *DB) ToggleTodo(ctx context.Context, id string) error {
-	_, err := d.raw.QueryWithParams(ctx,
+	rows, err := d.raw.QueryWithParams(ctx,
+		`SELECT id FROM todos WHERE id = $1`,
+		libravdb.QueryParams{"1": id})
+	if err != nil {
+		return err
+	}
+	if len(rows.Results) == 0 {
+		return fmt.Errorf("todo %q not found", id)
+	}
+	_, err = d.raw.QueryWithParams(ctx,
 		`UPDATE todos SET completed = NOT completed WHERE id = $1`,
 		libravdb.QueryParams{"1": id})
 	return err
@@ -462,10 +486,10 @@ func (d *DB) Versions(ctx context.Context, table, start, end string) ([]models.V
 	var out []models.Version
 	for _, r := range res.Results {
 		out = append(out, models.Version{
-			ID:           str(r.Metadata["id"]),
-			Version:      atoi(r.Metadata["version"]),
-			Title:        str(r.Metadata["title"]),
-			Completed:    r.Metadata["completed"] == true,
+			ID:        str(r.Metadata["id"]),
+			Version:   atoi(r.Metadata["version"]),
+			Title:     str(r.Metadata["title"]),
+			Completed: boolValue(r.Metadata["completed"]),
 			// version_start/end come back as time.Time values —
 			// fmt.Sprint renders them.
 			VersionStart: fmt.Sprint(r.Metadata["version_start"]),

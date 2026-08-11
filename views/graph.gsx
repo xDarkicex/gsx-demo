@@ -4,61 +4,83 @@
 // an add-edge form (GRAPH_EDGES INSERT), and the 2-hop traversal
 // with mutual counts.
 func GraphPage(p models.Page) {
-    <h1 class="uk-h2">Graph</h1>
-    <p class="muted">FOLLOWS — <code>GRAPH_EDGES</code>, <code>JOIN MATCH</code>, 2-hop traversal</p>
+    <div class="page-heading">
+        <div>
+            <div class="eyebrow">Social graph</div>
+            <h1>Graph explorer</h1>
+            <p class="page-subtitle">
+                The <code>FOLLOWS</code> graph — edges via
+                <code>GRAPH_EDGES</code>, traversals via <code>JOIN MATCH</code>.
+            </p>
+        </div>
+        <div class="heading-chip"><span class="status-dot"></span> FOLLOWS</div>
+    </div>
 
-    <div class="uk-grid uk-child-width-1-2@m" uk-grid>
-        <div class="uk-card uk-card-default uk-card-body">
-            <h3 class="uk-h4">Edges <span class="uk-badge">{len(p.Dash.Edges)}</span></h3>
-            <form method="post" action="/dashboard/graph/add" class="uk-grid-small" uk-grid>
-                <div class="uk-width-1-3"><input class="uk-input" type="text" name="from" placeholder="from" /></div>
-                <div class="uk-width-1-3"><input class="uk-input" type="text" name="to" placeholder="to" /></div>
-                <div class="uk-width-1-3"><button class="uk-button uk-button-small uk-button-primary">Add edge</button></div>
+    <div class="overview-grid">
+        <section class="dashboard-card">
+            <div class="card-heading">
+                <div>
+                    <div class="card-kicker">Connections</div>
+                    <h2>Edges</h2>
+                </div>
+                <span class="record-count">{len(p.Dash.Edges)}</span>
+            </div>
+
+            <form method="post" action="/dashboard/graph/add" class="graph-add-form">
+                <input class="uk-input" type="text" name="from" placeholder="from" />
+                <span class="graph-arrow">→</span>
+                <input class="uk-input" type="text" name="to" placeholder="to" />
+                <button class="uk-button uk-button-primary">Add edge</button>
             </form>
-            <ul class="uk-list uk-list-divider uk-margin-top">
+
+            <ul class="clean-list">
                 @for _, e := range p.Dash.Edges {
-                    <li class="uk-flex uk-flex-between">
-                        <span><strong>{e.From}</strong> → {e.To}</span>
-                        <form method="post" action="/dashboard/graph/remove" class="uk-display-inline">
+                    <li>
+                        <span class="list-avatar">{userInitial(e.From)}</span>
+                        <span class="list-copy">
+                            <strong>{e.From}</strong>
+                            <span>→ {e.To}</span>
+                        </span>
+                        <form method="post" action="/dashboard/graph/remove" class="action-form list-action">
                             <input type="hidden" name="from" value={e.From} />
                             <input type="hidden" name="to" value={e.To} />
-                            <button class="uk-button uk-button-small uk-button-danger">Remove</button>
+                            <button class="uk-button uk-button-small uk-button-ghost action-button action-delete">Remove</button>
                         </form>
                     </li>
                 }
                 @if len(p.Dash.Edges) == 0 {
-                    <li class="muted">No edges.</li>
+                    <li class="empty-state">No edges yet — add one above.</li>
                 }
             </ul>
-        </div>
+        </section>
 
-        <div class="uk-card uk-card-default uk-card-body">
-            <h3 class="uk-h4">2-hop suggestions <span class="uk-badge">{len(p.Dash.Suggestions)}</span></h3>
-            <p class="muted small">
-                Chained <code>JOIN MATCH (me)-[f1]->(mid) JOIN MATCH (mid)-[f2]->(tgt)</code>
-                with <code>GROUP BY</code> mutual counts.
+        <section class="dashboard-card">
+            <div class="card-heading">
+                <div>
+                    <div class="card-kicker">2-hop traversal</div>
+                    <h2>Suggestions</h2>
+                </div>
+                <span class="record-count">{len(p.Dash.Suggestions)}</span>
+            </div>
+            <p class="card-description">
+                Chained <code>JOIN MATCH (me)-[f1]-&gt;(mid)-[f2]-&gt;(tgt)</code>,
+                grouped by mutual count.
             </p>
-            <ul class="uk-list uk-list-divider">
+
+            <ul class="clean-list">
                 @for _, s := range p.Dash.Suggestions {
                     <li>
-                        <strong>{s.Name}</strong>
-                        <span class="muted">&#64;{s.ID} · {s.Mutual} mutual</span>
+                        <span class="list-avatar">{userInitial(s.Name)}</span>
+                        <span class="list-copy">
+                            <strong>{s.Name}</strong>
+                            <span>&#64;{s.ID} · {s.Mutual} mutual</span>
+                        </span>
                     </li>
                 }
                 @if len(p.Dash.Suggestions) == 0 {
-                    <li class="muted">No suggestions.</li>
+                    <li class="empty-state">No suggestions right now.</li>
                 }
             </ul>
-            <hr class="uk-divider-small" />
-            <h3 class="uk-h4">Following <span class="uk-badge">{len(p.Dash.Following)}</span></h3>
-            <ul class="uk-list uk-list-divider">
-                @for _, f := range p.Dash.Following {
-                    <li>{f.Name} <span class="muted">&#64;{f.ID}</span></li>
-                }
-                @if len(p.Dash.Following) == 0 {
-                    <li class="muted">Nobody yet.</li>
-                }
-            </ul>
-        </div>
+        </section>
     </div>
 }

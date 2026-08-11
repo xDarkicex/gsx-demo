@@ -32,7 +32,7 @@ require (
 	github.com/tdewolff/minify v2.3.6+incompatible // indirect
 	github.com/tdewolff/parse v2.3.4+incompatible // indirect
 	github.com/xDarkicex/lexer v0.1.2 // indirect
-	github.com/xDarkicex/memory v1.2.8 // indirect
+	github.com/xDarkicex/memory v1.2.9 // indirect
 	github.com/xDarkicex/nanite/sse v0.0.3 // indirect
 	golang.org/x/mod v0.37.0 // indirect
 	golang.org/x/sync v0.21.0 // indirect

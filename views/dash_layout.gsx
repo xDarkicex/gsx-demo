@@ -10,51 +10,75 @@ func DashLayout(p models.Page) {
             <meta charset="utf-8" />
             <meta name="viewport" content="width=device-width, initial-scale=1" />
             <title>gsx-studio — dashboard</title>
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+            <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
             <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.21.13/dist/css/uikit.min.css" />
-            <link rel="stylesheet" href="/static/app.css" />
+            <link rel="stylesheet" href="/static/app.css?v=4" />
             <script defer src="https://cdn.jsdelivr.net/npm/uikit@3.21.13/dist/js/uikit.min.js"></script>
             <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
             <script defer src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
         </head>
         <body class="dash-body">
-            <div class="uk-grid-collapse dash-shell" uk-grid>
-                <aside class="dash-sidebar uk-width-1-4@m uk-width-1-1">
-                    <div class="uk-card uk-card-default uk-card-body">
-                        <div class="dash-brand">gsx-studio</div>
-                        <div class="muted small">project: demo</div>
-                        <hr class="uk-divider-small" />
-                        <ul class="uk-nav uk-nav-default">
-                            <li class="uk-nav-header">Project</li>
-                            <li class={navActive(p.Dash.Active, "overview")}>
-                                <a href="/dashboard">Overview</a>
-                            </li>
-                            <li class="uk-nav-header">Tools</li>
-                            <li class={navActive(p.Dash.Active, "editor")}>
-                                <a href="/dashboard/editor">Table Editor</a>
-                            </li>
-                            <li class={navActive(p.Dash.Active, "sql")}>
-                                <a href="/dashboard/sql">SQL Editor</a>
-                            </li>
-                            <li class={navActive(p.Dash.Active, "temporal")}>
-                                <a href="/dashboard/temporal">Temporal</a>
-                            </li>
-                            <li class={navActive(p.Dash.Active, "graph")}>
-                                <a href="/dashboard/graph">Graph</a>
-                            </li>
-                            <li class="uk-nav-header">Project</li>
-                            <li class={navActive(p.Dash.Active, "settings")}>
-                                <a href="/dashboard/settings">Settings</a>
-                            </li>
-                        </ul>
-                        <hr class="uk-divider-small" />
-                        <div class="muted small">signed in as {p.User.Name}</div>
-                        <form method="post" action="/logout" class="uk-margin-small-top">
-                            <button class="uk-button uk-button-small uk-button-default">Log out</button>
+            <div class="dash-shell">
+                <aside class="dash-sidebar">
+                    <div class="dash-brand-row">
+                        <span class="brand-mark">g</span>
+                        <div>
+                            <div class="dash-brand">gsx-studio</div>
+                            <div class="sidebar-caption">data workspace</div>
+                        </div>
+                    </div>
+
+                    <div class="workspace-switcher">
+                        <div class="sidebar-caption">Workspace</div>
+                        <div class="workspace-name">Demo project <span class="workspace-chevron">⌄</span></div>
+                        <div class="workspace-meta"><span class="status-dot"></span> Local environment</div>
+                    </div>
+
+                    <nav class="sidebar-nav" aria-label="Dashboard navigation">
+                        <div class="nav-section-label">Workspace</div>
+                        <a class={sidebarNavActive(p.Dash.Active, "overview")} href="/dashboard">
+                            <span class="nav-icon">⌂</span><span>Overview</span>
+                        </a>
+                        <div class="nav-section-label nav-section-spaced">Build</div>
+                        <a class={sidebarNavActive(p.Dash.Active, "editor")} href="/dashboard/editor">
+                            <span class="nav-icon">▦</span><span>Table editor</span>
+                        </a>
+                        <a class={sidebarNavActive(p.Dash.Active, "sql")} href="/dashboard/sql">
+                            <span class="nav-icon nav-icon-text">SQL</span><span>SQL editor</span>
+                        </a>
+                        <a class={sidebarNavActive(p.Dash.Active, "temporal")} href="/dashboard/temporal">
+                            <span class="nav-icon">◷</span><span>Temporal</span>
+                        </a>
+                        <a class={sidebarNavActive(p.Dash.Active, "graph")} href="/dashboard/graph">
+                            <span class="nav-icon">⌘</span><span>Graph</span>
+                        </a>
+                        <div class="nav-section-label nav-section-spaced">Account</div>
+                        <a class={sidebarNavActive(p.Dash.Active, "settings")} href="/dashboard/settings">
+                            <span class="nav-icon">⚙</span><span>Settings</span>
+                        </a>
+                    </nav>
+
+                    <div class="sidebar-footer">
+                        <div class="profile-row">
+                            <span class="profile-avatar">{userInitial(p.User.Name)}</span>
+                            <div class="profile-copy">
+                                <strong>{p.User.Name}</strong>
+                                <span>{p.User.Email}</span>
+                            </div>
+                        </div>
+                        <form method="post" action="/logout">
+                            <button class="logout-button" type="submit"><span>↪</span> Log out</button>
                         </form>
                     </div>
                 </aside>
-                <main class="uk-width-3-4@m dash-main">
-                    <div class="uk-container uk-container-large uk-padding">
+                <main class="dash-main">
+                    <header class="dash-topbar">
+                        <div class="topbar-context"><span class="topbar-kicker">GSX / DEMO</span><span class="topbar-separator">/</span><span>Dashboard</span></div>
+                        <div class="topbar-status"><span class="status-dot"></span> All systems operational</div>
+                    </header>
+                    <div class="dashboard-content">
                         @yield
                     </div>
                 </main>

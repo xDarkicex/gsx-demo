@@ -35,8 +35,8 @@ github.com/tdewolff/parse v2.3.4+incompatible h1:x05/cnGwIMf4ceLuDMBOdQ1qGniMoxp
 github.com/tdewolff/parse v2.3.4+incompatible/go.mod h1:8oBwCsVmUkgHO8M5iCzSIDtpzXOT0WXX9cWhz+bIzJQ=
 github.com/tdewolff/test v1.0.12 h1:7F21DqIajswxuche0geHdrUZRCWE4oko4b7bcmkkrxk=
 github.com/tdewolff/test v1.0.12/go.mod h1:XPuWBzvdUzhCuxWO1ojpXsyzsA5bFoS3tO/Q3kFuTG8=
-github.com/xDarkicex/memory v1.2.8 h1:ySICzCQyNDuUtGkYQTK1sfebOPKTz3nV7ri9MJZecfQ=
-github.com/xDarkicex/memory v1.2.8/go.mod h1:ucTTiUZMrWXY/nDFkyLMlQ7BnO3qCmG2P2BMJKOSdGc=
+github.com/xDarkicex/memory v1.2.9 h1:qFCugJbwf47bA/gcua5AfscR+6950qeipefjkljDtUw=
+github.com/xDarkicex/memory v1.2.9/go.mod h1:ucTTiUZMrWXY/nDFkyLMlQ7BnO3qCmG2P2BMJKOSdGc=
 github.com/xDarkicex/nanite/sse v0.0.3 h1:yX9QAu5h0dSoARqcRRPObtfmzRvzENxUqVhIthY4fFo=
 github.com/xDarkicex/nanite/sse v0.0.3/go.mod h1:LElBvsUOR6V4oEv7conUlFde3xucsFCVCQtCP2N/Uz4=
 go.uber.org/goleak v1.3.0 h1:2K3zAYmnTNqV73imy9J1T3WC+gmCePx2hEGkimedGto=

@@ -15,6 +15,7 @@ import (
 	"crypto/rand"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strconv"
@@ -325,6 +326,14 @@ func editor(reg *render.Registry) nanite.HandlerFunc {
 		page := dashBase(c, "editor")
 		page.Dash.Todos = todos
 		page.Dash.TodoFilter = filter
+		switch c.Query("notice") {
+		case "created":
+			page.Dash.TodoStat = "Todo created."
+		case "updated":
+			page.Dash.TodoStat = "Todo status updated."
+		case "deleted":
+			page.Dash.TodoStat = "Todo deleted."
+		}
 		if err := renderDash(reg, c, "Editor", page); err != nil {
 			fail(c, err)
 		}
@@ -346,7 +355,7 @@ func editorSave(reg *render.Registry) nanite.HandlerFunc {
 			fail(c, err)
 			return
 		}
-		c.Redirect(http.StatusFound, "/dashboard/editor")
+		editorRedirect(c, "created")
 	}
 }
 
@@ -357,7 +366,7 @@ func editorToggle(reg *render.Registry) nanite.HandlerFunc {
 			fail(c, err)
 			return
 		}
-		c.Redirect(http.StatusFound, "/dashboard/editor")
+		editorRedirect(c, "updated")
 	}
 }
 
@@ -368,8 +377,16 @@ func editorDelete(reg *render.Registry) nanite.HandlerFunc {
 			fail(c, err)
 			return
 		}
-		c.Redirect(http.StatusFound, "/dashboard/editor")
+		editorRedirect(c, "deleted")
 	}
+}
+
+func editorRedirect(c *nanite.Context, notice string) {
+	location := "/dashboard/editor?notice=" + url.QueryEscape(notice)
+	if filter := c.FormValue("q"); filter != "" {
+		location += "&q=" + url.QueryEscape(filter)
+	}
+	c.Redirect(http.StatusFound, location)
 }
 
 // sqlPage renders the SQL editor (results from the last run).
