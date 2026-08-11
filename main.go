@@ -14,6 +14,9 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/xDarkicex/nanite"
@@ -31,7 +34,7 @@ func main() {
 	ctx := context.Background()
 
 	// 1. libraVDB — relational + graph, seeded on first boot.
-	d, err := db.Open()
+	d, err := db.Open("data")
 	if err != nil {
 		log.Fatalf("open libraVDB: %v", err)
 	}
@@ -87,6 +90,17 @@ func main() {
 	r.Post("/_nano/action/*", func(c *nanite.Context) {
 		reg.HandleAction(c.Writer, c.Request)
 	})
+
+	// Graceful shutdown: SIGINT/SIGTERM → router Shutdown runs the
+	// shutdown hooks, which close libraVDB cleanly — the SQL
+	// catalog and graph WAL flush to disk so clicks persist.
+	r.AddShutdownHook(func() error { return d.Close() })
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sig
+		_ = r.Shutdown(5 * time.Second)
+	}()
 
 	log.Printf("gsx-demo: http://localhost:3000 (alice@demo.dev / demo123)")
 	if err := r.Start("3000"); err != nil {

@@ -68,18 +68,27 @@ Each view is a Go function taking typed props. The compiler emits a
 
 ### The libraVDB layer
 
-All data access is SQL (`db.Query` / `QueryWithParams`):
+All data access is SQL (`db.Query` / `QueryWithParams`) — no
+collections API after migration:
 
-- `CREATE TABLE`-style collection with a metadata schema, a named
-  unique constraint on email, and a bound graph.
-- `INSERT INTO GRAPH_EDGES VALUES ('alice','FOLLOWS','bob')` — edges
-  are created with SQL.
-- `SELECT ... FROM users src JOIN MATCH (src)-[r:FOLLOWS]->(tgt)` —
-  graph traversal is SQL.
-- Node mutation falls back to the graph's Go API where SQL has no
-  surface (edge deletion: `RemoveEdge`, node ids = record ordinal+1).
+- Relational: the `users` collection (metadata schema, named unique
+  constraint on email) — CRUD with `$1/$2/...` parameters.
+- Graph edges: parameterized `INSERT INTO GRAPH_EDGES VALUES ($1,
+  'FOLLOWS', $2)` and `DELETE FROM GRAPH_EDGES WHERE source = $1 ...`.
+- Traversal: `SELECT tgt.id, tgt.name FROM users src JOIN MATCH
+  (src)-[r:FOLLOWS]->(tgt) WHERE src.id = $1` — projections and
+  source filtering included.
+- 2-hop suggestions: two single-hop traversals aggregated in Go
+  (chained `JOIN MATCH ... JOIN MATCH` target filtering is not
+  reliable yet — a known libraVDB quirk).
+- Persistence: the catalog, records, and graph WAL survive reopen;
+  the graph reattaches with `col.SetGraph(gr)` and the WAL replays
+  the edges — follow clicks persist across restarts, and the server
+  flushes them on graceful shutdown (`SIGTERM` → router shutdown
+  hook → `db.Close()`).
 
-No vectors, no embeddings — pure relational + graph.
+libraVDB also ships temporal and vector engines — this demo uses
+its relational + graph surfaces.
 
 ## Layout
 
