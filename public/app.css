@@ -1926,52 +1926,55 @@ form button {
 .auth-card {
   width: 384px;
   max-width: 100%;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
-  padding: 28px;
+  background: #18203a;
+  border: 1px solid #33415f;
+  border-radius: 12px;
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(56, 189, 248, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  padding: 30px;
 }
 .auth-brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 24px;
+  padding-bottom: 20px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid var(--border);
 }
 .auth-logo {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
   border-radius: 8px;
   color: #062033;
   font-weight: 800;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
 }
-.auth-brand-name { font-weight: 700; color: var(--text); font-size: 0.95rem; letter-spacing: -0.01em; }
-.auth-title { font-size: 1.35rem; font-weight: 800; color: var(--text); margin: 0 0 4px; letter-spacing: -0.02em; }
-.auth-subtitle { color: var(--muted); font-size: 0.85rem; margin: 0 0 20px; }
-.auth-form .field { margin-bottom: 14px; }
-.auth-submit { width: 100%; padding: 10px 16px; }
+.auth-brand-name { font-weight: 700; color: var(--text); font-size: 1rem; letter-spacing: -0.01em; }
+.auth-title { font-size: 1.5rem; font-weight: 800; color: var(--text); margin: 0 0 4px; letter-spacing: -0.02em; }
+.auth-subtitle { color: var(--muted); font-size: 0.85rem; margin: 0 0 22px; }
+.auth-form .field { margin-bottom: 16px; }
+.auth-form .uk-form-label { display: block; margin-bottom: 6px; }
+.auth-form .uk-input {
+  background: #0e1426;
+  border: 1px solid #33415f;
+  border-radius: 8px;
+  padding: 11px 13px;
+  font-size: 0.92rem;
+}
+.auth-form .uk-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12); }
+.auth-submit { width: 100%; padding: 11px 16px; margin-top: 4px; }
 .auth-footer {
-  margin-top: 18px;
-  padding-top: 14px;
+  margin-top: 20px;
+  padding-top: 16px;
   border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-
-/* error variant of the notice banner */
-.notice-error {
-  border-color: rgba(248, 113, 113, 0.4);
-  color: var(--danger);
-  background: rgba(248, 113, 113, 0.08);
-}
-.notice-error .notice-icon {
-  color: #2a0a0a;
-  background: var(--danger);
 }
 
 /* ============ graph page ============ */
