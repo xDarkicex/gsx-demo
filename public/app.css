@@ -2057,3 +2057,47 @@ form button {
 }
 .modal-close:hover { color: var(--text); background: var(--panel-2); }
 [x-cloak] { display: none !important; }
+
+/* tag chips */
+.tag-input-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 0;
+}
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  font-size: 0.78rem;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: var(--accent);
+  cursor: pointer;
+}
+.tag-chip:hover {
+  background: rgba(248, 113, 113, 0.15);
+  border-color: rgba(248, 113, 113, 0.45);
+  color: var(--danger);
+  text-decoration: line-through;
+}
+
+/* modal form buttons: equal size + spacing */
+.form-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.form-actions .uk-button {
+  min-width: 112px;
+  justify-content: center;
+  display: inline-flex;
+  align-items: center;
+}

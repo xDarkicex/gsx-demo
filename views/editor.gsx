@@ -48,7 +48,8 @@ func Editor(p models.Page) {
             <form
                 hx-post="/_nano/action/TodoTable/Save"
                 hx-target="#todo-table" hx-swap="outerHTML"
-                hx-on::after-swap="UIkit.modal('#new-todo-modal').hide()">
+                hx-on::after-swap="UIkit.modal('#new-todo-modal').hide(); UIkit.notification({message: 'Todo saved', status: 'success'})"
+                hx-on::response-error="UIkit.notification({message: 'Save failed — check the fields', status: 'danger'})">
                 <div class="todo-form-grid">
                     <div class="field field-wide"><label class="uk-form-label" for="todo-title">Title</label>
                         <input id="todo-title" class="uk-input" type="text" name="title" placeholder="Ship the modal" required autofocus /></div>
@@ -63,8 +64,21 @@ func Editor(p models.Page) {
                         <input id="todo-opened" class="uk-input" type="text" name="opened_at" placeholder="2026-08-11 09:00:00" /></div>
                     <div class="field"><label class="uk-form-label" for="todo-due">Due date</label>
                         <input id="todo-due" class="uk-input" type="text" name="due_at" placeholder="2026-08-15 12:00:00" /></div>
-                    <div class="field field-wide"><label class="uk-form-label" for="todo-tags">Tags</label>
-                        <input id="todo-tags" class="uk-input" type="text" name="tags" placeholder='["ops"]' /></div>
+                    <div class="field field-wide" x-data="{tags: [], draft: '', addTag() { var t = this.draft.trim().replace(/,+$/, ''); if (t && !this.tags.includes(t)) { this.tags.push(t); } this.draft = ''; }}">
+                        <label class="uk-form-label">Tags</label>
+                        <div class="tag-input-wrap">
+                            <div class="tag-chips">
+                                <template x-for="t in tags" :key="t">
+                                    <span class="tag-chip" x-text="t" @click="tags = tags.filter(x => x !== t)"></span>
+                                </template>
+                            </div>
+                            <input id="todo-tags" class="uk-input" type="text" x-model="draft"
+                                @keydown.enter.prevent="addTag"
+                                @keydown="if ($event.key === ',') { $event.preventDefault(); addTag() }"
+                                placeholder="ops, docs" />
+                        </div>
+                        <input type="hidden" name="tags" :value="JSON.stringify(tags)" />
+                    </div>
                 </div>
                 <div class="form-actions">
                     <button type="button" class="uk-button uk-button-secondary" uk-toggle="target: #new-todo-modal">Cancel</button>

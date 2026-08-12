@@ -1,0 +1,22 @@
+<!doctype html><html><head><script defer src="/static/vendor/alpine.min.js"></script></head>
+<body>
+<div x-data="{tags: [], draft: '', addTag() { var t = this.draft.trim().replace(/,+$/, ''); if (t && !this.tags.includes(t)) { this.tags.push(t); } this.draft = ''; }}">
+  <div class="tag-chips">
+    <template x-for="t in tags" :key="t">
+      <span class="tag-chip" x-text="t"></span>
+    </template>
+  </div>
+  <input id="tag-input" type="text" x-model="draft" @keydown="if ($event.key === ',') { $event.preventDefault(); addTag() }" />
+  <input type="hidden" id="tag-hidden" name="tags" :value="JSON.stringify(tags)" />
+</div>
+<script>
+document.addEventListener('alpine:init', function(){
+  setTimeout(function(){
+    var i = document.getElementById('tag-input');
+    i.value = 'ops';
+    i.dispatchEvent(new Event('input', {bubbles: true}));
+    i.dispatchEvent(new KeyboardEvent('keydown', {key: ',', bubbles: true}));
+  }, 400);
+});
+</script>
+</body></html>
