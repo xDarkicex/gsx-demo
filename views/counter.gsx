@@ -21,7 +21,7 @@
 // posts to the @action above, which persists the count and swaps
 // the card back with the re-hydrated value.
 func CounterWidget(props map[string]any) {
-    <div class="card" x-data={map[string]any{"count": props["count"], "feature": props["feature"]}}>
+    <div class="dashboard-card" x-data={map[string]any{"count": props["count"], "feature": props["feature"]}}>
         <h2>Alpine.js, hydrated from Go</h2>
         <p class="muted">
             This widget's initial state was serialized by

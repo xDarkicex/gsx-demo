@@ -15,7 +15,7 @@ type CounterWidget struct{}
 func RenderCounterWidget(c *render.ComponentContext, props map[string]any, children func(c *render.ComponentContext) error) error {
 	c.WriteString(`<style>[x-cloak]{display:none!important}</style>`)
 	c.WriteString(`<div`)
-	c.WriteString(" class=\"card\"")
+	c.WriteString(" class=\"dashboard-card\"")
 	c.WriteHydrateProps("x-data", map[string]any{"count": props["count"], "feature": props["feature"]})
 	c.WriteString(">")
 	c.WriteString(`<h2>`)
