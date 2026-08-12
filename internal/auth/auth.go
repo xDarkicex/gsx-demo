@@ -130,3 +130,15 @@ func UserFromRequest(r *http.Request) *models.User {
 	}
 	return Get(cookie.Value)
 }
+
+// AttachUser resolves an optional session for public pages — it
+// applies when a valid cookie exists and never redirects. Guards
+// on protected routes still use RequireUser.
+func AttachUser(c *nanite.Context, next func()) {
+	if cookie, err := c.Request.Cookie(SessionCookie); err == nil {
+		if u := Get(cookie.Value); u != nil {
+			c.Set("user", u)
+		}
+	}
+	next()
+}

@@ -52,6 +52,8 @@ type ErrorData struct {
 // HomeData feeds the public homepage.
 type HomeData struct {
 	UserCount   int
+	TodoCount   int
+	ClickCount  int
 	FollowerTop []Follower // top users by follower count (graph query)
 	Feature     string     // value hydrated into the Alpine demo widget
 	Counter     int        // durable click counter (libraVDB)

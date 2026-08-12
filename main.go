@@ -102,6 +102,11 @@ func main() {
 				"Not Found", "The page you're looking for doesn't exist.")
 		},
 	}))
+	// Public pages resolve an optional session (nav switches to
+	// profile); the dashboard group guards with RequireUser.
+	// Registered before the routes — nanite bakes global
+	// middleware into routes at registration time.
+	r.Use(auth.AttachUser)
 	r.ServeStatic("/static", "./public")
 
 	r.Get("/", home(reg))
@@ -115,6 +120,7 @@ func main() {
 	prof.Get("/:id", profile(reg))
 	r.Get("/widgets/clock", clockWidget(reg))
 	r.Get("/dashboard/partial/following", followingPartial(reg))
+
 
 	// The dashboard group is guarded by session middleware.
 	dash := r.Group("/dashboard", auth.RequireUser)
@@ -201,10 +207,17 @@ func home(reg *render.Registry) nanite.HandlerFunc {
 			fail(reg, c, err)
 			return
 		}
+		todos, err := db.Default.TodoCount(c.Request.Context())
+		if err != nil {
+			fail(reg, c, err)
+			return
+		}
 		page := models.Page{
 			User: auth.CurrentUser(c),
 			Home: &models.HomeData{
 				UserCount:   n,
+				TodoCount:   todos,
+				ClickCount:  clicks,
 				FollowerTop: top,
 				Feature:     "server-hydrated",
 				Counter:     clicks,
