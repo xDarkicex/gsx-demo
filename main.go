@@ -42,6 +42,7 @@ func main() {
 		log.Fatalf("open libraVDB: %v", err)
 	}
 	defer d.Close()
+	auth.SetStore(d) // durable sessions — logins survive restarts
 	if err := d.Seed(ctx); err != nil {
 		log.Fatalf("seed: %v", err)
 	}
@@ -241,7 +242,7 @@ func loginPost(reg *render.Registry) nanite.HandlerFunc {
 			return
 		}
 
-		tok, err := auth.Default.Create(u)
+		tok, err := auth.Create(u)
 		if err != nil {
 			fail(reg, c, err)
 			return
@@ -251,6 +252,7 @@ func loginPost(reg *render.Registry) nanite.HandlerFunc {
 			Value:    tok,
 			Path:     "/",
 			HttpOnly: true,
+			SameSite: http.SameSiteLaxMode,
 			MaxAge:   int(auth.SessionTTL.Seconds()),
 		})
 		c.Redirect(http.StatusFound, "/dashboard")
@@ -259,7 +261,7 @@ func loginPost(reg *render.Registry) nanite.HandlerFunc {
 
 func logout(c *nanite.Context) {
 	if cookie, err := c.Request.Cookie(auth.SessionCookie); err == nil {
-		auth.Default.Delete(cookie.Value)
+		auth.Delete(cookie.Value)
 	}
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name: auth.SessionCookie, Value: "", Path: "/", HttpOnly: true, MaxAge: -1,

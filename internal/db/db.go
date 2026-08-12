@@ -93,6 +93,15 @@ func (d *DB) migrate(ctx context.Context) error {
 		// Row already present on reopen.
 	}
 
+	// The durable sessions table — server restarts keep everyone
+	// logged in (the cookie stays valid; the token resolves here).
+	if _, err := d.raw.Query(ctx,
+		"CREATE TABLE sessions (token TEXT PRIMARY KEY, user_id TEXT, created_at TIMESTAMP, expires_at TIMESTAMP)"); err != nil {
+		if !strings.Contains(err.Error(), "exists") {
+			return fmt.Errorf("create sessions table: %w", err)
+		}
+	}
+
 	col, err := d.raw.GetCollection("users")
 	if err == nil {
 		// Reopened: reattach the graph; the WAL replays edges.
@@ -638,4 +647,41 @@ func (d *DB) TodoByID(ctx context.Context, id string) (*models.Todo, error) {
 		DueAt:     str(r.Metadata["due_at"]),
 		Tags:      fmt.Sprint(r.Metadata["tags"]),
 	}, nil
+}
+
+// --- durable sessions (auth.SessionStore) ---
+
+// CreateSession records a session token for a user.
+func (d *DB) CreateSession(ctx context.Context, token, userID string, expiresAt time.Time) error {
+	_, err := d.raw.QueryWithParams(ctx,
+		`INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES ($1, $2, $3, $4)`,
+		libravdb.QueryParams{
+			"1": token, "2": userID,
+			"3": time.Now().UTC().Format(time.RFC3339),
+			"4": expiresAt.Format(time.RFC3339),
+		})
+	return err
+}
+
+// SessionUser resolves a session token to its user, or nil when
+// missing or expired.
+func (d *DB) SessionUser(ctx context.Context, token string) (*models.User, error) {
+	res, err := d.raw.QueryWithParams(ctx,
+		`SELECT user_id FROM sessions WHERE token = $1 AND expires_at > $2`,
+		libravdb.QueryParams{"1": token, "2": time.Now().UTC().Format(time.RFC3339)})
+	if err != nil {
+		return nil, err
+	}
+	if len(res.Results) == 0 {
+		return nil, nil
+	}
+	return d.UserByID(ctx, str(res.Results[0].Metadata["user_id"]))
+}
+
+// DeleteSession removes a session token (logout).
+func (d *DB) DeleteSession(ctx context.Context, token string) error {
+	_, err := d.raw.QueryWithParams(ctx,
+		`DELETE FROM sessions WHERE token = $1`,
+		libravdb.QueryParams{"1": token})
+	return err
 }

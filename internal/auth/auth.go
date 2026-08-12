@@ -3,10 +3,11 @@
 package auth
 
 import (
+	"context"
 	"crypto/rand"
+	"errors"
 	"encoding/hex"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/xDarkicex/nanite"
@@ -15,9 +16,21 @@ import (
 	"github.com/xDarkicex/gsx-demo/models"
 )
 
-// Default is the demo's session store. Handlers and @action bodies
-// share this one instance.
-var Default = NewSessions()
+// Store is the durable session backend. The db package implements
+// it over libraVDB's relational surface, so sessions survive
+// server restarts.
+type Store interface {
+	CreateSession(ctx context.Context, token, userID string, expiresAt time.Time) error
+	SessionUser(ctx context.Context, token string) (*models.User, error)
+	DeleteSession(ctx context.Context, token string) error
+}
+
+// Default is the wired session store. main sets it to db.Default
+// after opening the database; handlers and @action bodies share it.
+var Default Store
+
+// SetStore wires the session backend (called by main at boot).
+func SetStore(s Store) { Default = s }
 
 // SessionCookie is the HttpOnly cookie that carries the session id.
 const SessionCookie = "gsx_session"
@@ -25,52 +38,42 @@ const SessionCookie = "gsx_session"
 // SessionTTL is how long a session lives before expiring.
 const SessionTTL = 7 * 24 * time.Hour
 
-// Sessions is an in-memory session store: token → user.
-// Fine for a demo; swap for a sessions table for real deployments.
-type Sessions struct {
-	mu sync.RWMutex
-	m  map[string]session
-}
-
-type session struct {
-	user *models.User
-	exp  time.Time
-}
-
-// NewSessions returns an empty session store.
-func NewSessions() *Sessions {
-	return &Sessions{m: make(map[string]session)}
-}
-
-// Create issues a new session for the user and returns its token.
-func (s *Sessions) Create(u *models.User) (string, error) {
+// Create issues a new session token and persists it durably.
+func Create(u *models.User) (string, error) {
 	buf := make([]byte, 32)
 	if _, err := rand.Read(buf); err != nil {
 		return "", err
 	}
 	tok := hex.EncodeToString(buf)
-	s.mu.Lock()
-	s.m[tok] = session{user: u, exp: time.Now().Add(SessionTTL)}
-	s.mu.Unlock()
+	if Default == nil {
+		return "", errors.New("auth: no session store wired")
+	}
+	if err := Default.CreateSession(context.Background(), tok, u.ID,
+		time.Now().Add(SessionTTL)); err != nil {
+		return "", err
+	}
 	return tok, nil
 }
 
-// Get resolves a token to its user, or nil if missing/expired.
-func (s *Sessions) Get(tok string) *models.User {
-	s.mu.RLock()
-	se, ok := s.m[tok]
-	s.mu.RUnlock()
-	if !ok || time.Now().After(se.exp) {
+// Get resolves a token to its user via the durable store, or nil
+// if missing/expired.
+func Get(tok string) *models.User {
+	if Default == nil || tok == "" {
 		return nil
 	}
-	return se.user
+	u, err := Default.SessionUser(context.Background(), tok)
+	if err != nil || u == nil {
+		return nil
+	}
+	return u
 }
 
 // Delete removes a session (logout).
-func (s *Sessions) Delete(tok string) {
-	s.mu.Lock()
-	delete(s.m, tok)
-	s.mu.Unlock()
+func Delete(tok string) {
+	if Default == nil {
+		return
+	}
+	_ = Default.DeleteSession(context.Background(), tok)
 }
 
 // HashPassword bcrypt-hashes a plaintext password.
@@ -94,7 +97,7 @@ func RequireUser(c *nanite.Context, next func()) {
 		c.Abort()
 		return
 	}
-	u := Default.Get(cookie.Value)
+	u := Get(cookie.Value)
 	if u == nil {
 		c.Redirect(http.StatusFound, "/login")
 		c.Abort()
@@ -125,5 +128,5 @@ func UserFromRequest(r *http.Request) *models.User {
 	if err != nil {
 		return nil
 	}
-	return Default.Get(cookie.Value)
+	return Get(cookie.Value)
 }
