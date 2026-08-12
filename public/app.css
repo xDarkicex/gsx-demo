@@ -2173,3 +2173,5 @@ form button {
   .home-grid { grid-template-columns: 1fr; }
   .home-title { font-size: 2.2rem; }
 }
+
+.counter-card { padding: 22px; }
