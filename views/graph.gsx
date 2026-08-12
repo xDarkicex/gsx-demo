@@ -29,8 +29,8 @@ func GraphPage(p models.Page) {
         <div id="graph-canvas" class="graph-canvas" aria-label="3D FOLLOWS graph"
             data-graph={p.Dash.GraphJSON}></div>
         <p class="card-description">Drag to orbit · scroll to zoom · hover a node for its connections.</p>
-        <script defer src="/static/vendor/three.min.js"></script>
-        <script defer src="/static/graph3d.js"></script>
+        <script defer src="/static/vendor/three.min.js?v=3"></script>
+        <script defer src="/static/graph3d.js?v=3"></script>
     </section>
 
     <div id="graph-panels">
