@@ -153,6 +153,20 @@ reference) against the nanite stack + libraVDB. Format per entry:
 - **Status**: demo workaround — the sessions table's PK is now `id` (the token is the
   id) + the migrate self-heals a stale `token`-PK schema (probe → drop → recreate).
 
+### N2. [dependency] Alpine x-show stops re-rendering when the scope has multiple x-on listeners — WORKAROUND
+
+- **Tried**: the New todo modal — `x-data="{newTodo:false}"` with `@click` on the button,
+  `@click` on the backdrop/close, and `@close` for the post-save close.
+- **Happened**: the state updates (an x-text probe shows `true` after the click), but
+  `x-show="newTodo"` stays `display: none`. The minimal case (single `@click`) works;
+  adding ANY second x-on listener in the scope breaks x-show reactivity. Reproduces on
+  Alpine 3.13.10 and 3.14.1 in a headless browser, with quoted or unquoted x-data keys.
+- **Desired**: x-show reacts to state changes regardless of the listener count.
+- **Status**: workaround — the modal is now uikit's `uk-modal` (JS-driven open/close,
+  verified working), with htmx for the save + table swap + `UIkit.modal(...).hide()`
+  after swap. Alpine remains for the x-text-driven widgets (counter, clock, navbar),
+  which are unaffected.
+
 ### N1. [dependency] Alpine 3.14.1 x-show reactivity regression — WORKAROUND
 
 - **Tried**: `@click="newTodo = true"` toggling an `x-show="newTodo"` modal (the New

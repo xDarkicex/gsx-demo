@@ -20,60 +20,57 @@ func Editor(p models.Page) {
         <div class="notice notice-success"><span class="notice-icon">✓</span>{p.Dash.TodoStat}</div>
     }
 
-    <div x-data={map[string]any{"newTodo": false}} @close="newTodo = false">
-        <div class="editor-toolbar">
-            <form class="search-form" hx-get="/dashboard/editor/table" hx-target="#todo-table"
-                hx-trigger="input changed delay:300ms" hx-swap="outerHTML">
-                <label class="sr-only" for="todo-search">Search todos</label>
-                <div class="search-input-wrap">
-                    <span class="search-icon">⌕</span>
-                    <input id="todo-search" class="uk-input search-input" type="search" name="q"
-                        placeholder="Search by title…" value={p.Dash.TodoFilter} />
-                </div>
-                <button type="submit" class="uk-button uk-button-secondary search-button">Search</button>
-            </form>
-            <button type="button" class="uk-button uk-button-primary add-todo-button" @click="newTodo = true">
-                <span class="button-plus">+</span> New todo
-            </button>
-        </div>
-
-        <div class="todo-modal" x-show="newTodo" x-cloak x-transition.opacity>
-            <div class="todo-modal-backdrop" @click="newTodo = false"></div>
-            <div class="todo-modal-card dashboard-card" role="dialog" aria-modal="true">
-                <div class="card-heading">
-                    <div>
-                        <div class="card-kicker">Create record</div>
-                        <h2>New todo</h2>
-                    </div>
-                    <button type="button" class="modal-close" @click="newTodo = false" aria-label="Close">✕</button>
-                </div>
-                <form
-                    hx-post="/_nano/action/TodoTable/Save"
-                    hx-target="#todo-table" hx-swap="outerHTML"
-                    hx-on::after-swap="$dispatch('close')">
-                    <div class="todo-form-grid">
-                        <div class="field field-wide"><label class="uk-form-label" for="todo-title">Title</label>
-                            <input id="todo-title" class="uk-input" type="text" name="title" placeholder="Ship the modal" required autofocus /></div>
-                        <div class="field"><label class="uk-form-label" for="todo-priority">Priority</label>
-                            <input id="todo-priority" class="uk-input" type="number" name="priority" value="3" min="1" max="5" /></div>
-                        <div class="field"><label class="uk-form-label" for="todo-status">Status</label>
-                            <select id="todo-status" class="uk-select" name="completed">
-                                <option value="false">open</option>
-                                <option value="true">closed</option>
-                            </select></div>
-                        <div class="field"><label class="uk-form-label" for="todo-opened">Opened date</label>
-                            <input id="todo-opened" class="uk-input" type="text" name="opened_at" placeholder="2026-08-11 09:00:00" /></div>
-                        <div class="field"><label class="uk-form-label" for="todo-due">Due date</label>
-                            <input id="todo-due" class="uk-input" type="text" name="due_at" placeholder="2026-08-15 12:00:00" /></div>
-                        <div class="field field-wide"><label class="uk-form-label" for="todo-tags">Tags</label>
-                            <input id="todo-tags" class="uk-input" type="text" name="tags" placeholder='["ops"]' /></div>
-                    </div>
-                    <div class="form-actions">
-                        <button type="button" class="uk-button uk-button-secondary" @click="newTodo = false">Cancel</button>
-                        <button type="submit" class="uk-button uk-button-primary">Save todo</button>
-                    </div>
-                </form>
+    <div class="editor-toolbar">
+        <form class="search-form" hx-get="/dashboard/editor/table" hx-target="#todo-table"
+            hx-trigger="input changed delay:300ms" hx-swap="outerHTML">
+            <label class="sr-only" for="todo-search">Search todos</label>
+            <div class="search-input-wrap">
+                <span class="search-icon">⌕</span>
+                <input id="todo-search" class="uk-input search-input" type="search" name="q"
+                    placeholder="Search by title…" value={p.Dash.TodoFilter} />
             </div>
+            <button type="submit" class="uk-button uk-button-secondary search-button">Search</button>
+        </form>
+        <button type="button" class="uk-button uk-button-primary add-todo-button" uk-toggle="target: #new-todo-modal">
+            <span class="button-plus">+</span> New todo
+        </button>
+    </div>
+
+    <div id="new-todo-modal" uk-modal>
+        <div class="uk-modal-dialog dashboard-card">
+            <button class="uk-modal-close-default modal-close" type="button" uk-close aria-label="Close"></button>
+            <div class="card-heading">
+                <div>
+                    <div class="card-kicker">Create record</div>
+                    <h2>New todo</h2>
+                </div>
+            </div>
+            <form
+                hx-post="/_nano/action/TodoTable/Save"
+                hx-target="#todo-table" hx-swap="outerHTML"
+                hx-on::after-swap="UIkit.modal('#new-todo-modal').hide()">
+                <div class="todo-form-grid">
+                    <div class="field field-wide"><label class="uk-form-label" for="todo-title">Title</label>
+                        <input id="todo-title" class="uk-input" type="text" name="title" placeholder="Ship the modal" required autofocus /></div>
+                    <div class="field"><label class="uk-form-label" for="todo-priority">Priority</label>
+                        <input id="todo-priority" class="uk-input" type="number" name="priority" value="3" min="1" max="5" /></div>
+                    <div class="field"><label class="uk-form-label" for="todo-status">Status</label>
+                        <select id="todo-status" class="uk-select" name="completed">
+                            <option value="false">open</option>
+                            <option value="true">closed</option>
+                        </select></div>
+                    <div class="field"><label class="uk-form-label" for="todo-opened">Opened date</label>
+                        <input id="todo-opened" class="uk-input" type="text" name="opened_at" placeholder="2026-08-11 09:00:00" /></div>
+                    <div class="field"><label class="uk-form-label" for="todo-due">Due date</label>
+                        <input id="todo-due" class="uk-input" type="text" name="due_at" placeholder="2026-08-15 12:00:00" /></div>
+                    <div class="field field-wide"><label class="uk-form-label" for="todo-tags">Tags</label>
+                        <input id="todo-tags" class="uk-input" type="text" name="tags" placeholder='["ops"]' /></div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="uk-button uk-button-secondary" uk-toggle="target: #new-todo-modal">Cancel</button>
+                    <button type="submit" class="uk-button uk-button-primary">Save todo</button>
+                </div>
+            </form>
         </div>
     </div>
 

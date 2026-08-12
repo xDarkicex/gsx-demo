@@ -91,7 +91,7 @@ type Navbar struct{}
 func RenderNavbar(c *render.ComponentContext, page models.Page, children func(c *render.ComponentContext) error) error {
 	c.WriteString(`<nav`)
 	c.WriteString(" class=\"navbar\"")
-	c.WriteHydrateProps("x-data", map[string]any{"open": false})
+	c.WriteString(" x-data=\"{open: false}\"")
 	c.WriteString(">")
 	c.WriteString(`<a`)
 	c.WriteString(" href=\"/\"")

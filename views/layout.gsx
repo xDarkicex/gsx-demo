@@ -29,7 +29,7 @@ func AppLayout(p models.Page) {
 // Navbar shows the session state. Alpine drives the dropdown menu;
 // the user object arrives server-side via x-data hydration.
 func Navbar(page models.Page) {
-    <nav class="navbar" x-data={map[string]any{"open": false}}>
+    <nav class="navbar" x-data="{open: false}">
         <a href="/" class="brand">&lt;/&gt;&nbsp;gsx-demo</a>
         <div class="nav-right">
             @if page.User != nil {
