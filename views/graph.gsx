@@ -19,6 +19,20 @@ func GraphPage(p models.Page) {
         <div class="heading-chip"><span class="status-dot"></span> FOLLOWS</div>
     </div>
 
+    <section class="dashboard-card graph-hero">
+        <div class="card-heading">
+            <div>
+                <div class="card-kicker">Live force layout</div>
+                <h2>FOLLOWS · {len(p.Dash.Users)} nodes · {len(p.Dash.Edges)} edges</h2>
+            </div>
+        </div>
+        <div id="graph-canvas" class="graph-canvas" aria-label="3D FOLLOWS graph"
+            data-graph={p.Dash.GraphJSON}></div>
+        <p class="card-description">Drag to orbit · scroll to zoom · hover a node for its connections.</p>
+        <script defer src="/static/vendor/three.min.js"></script>
+        <script defer src="/static/graph3d.js"></script>
+    </section>
+
     <div id="graph-panels">
         <EdgeList props={map[string]any{
             "edges": p.Dash.Edges, "suggestions": p.Dash.Suggestions,

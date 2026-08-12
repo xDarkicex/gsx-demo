@@ -12,6 +12,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"crypto/rand"
 	"log"
 	"net/http"
@@ -560,8 +561,20 @@ func graph(reg *render.Registry) nanite.HandlerFunc {
 				fresh = append(fresh, s)
 			}
 		}
+		users, err := db.Default.Users(c.Request.Context())
+		if err != nil {
+			fail(reg, c, err)
+			return
+		}
+		graphJSON, err := buildGraphJSON(users, edges)
+		if err != nil {
+			fail(reg, c, err)
+			return
+		}
 		page := dashBase(c, "graph")
 		page.Dash.Edges = edges
+		page.Dash.Users = users
+		page.Dash.GraphJSON = graphJSON
 		page.Dash.Following = following
 		page.Dash.Suggestions = fresh
 		page.Dash.GraphMsg = c.Query("msg")
@@ -818,6 +831,25 @@ func profile(reg *render.Registry) nanite.HandlerFunc {
 			fail(reg, c, err)
 		}
 	}
+}
+
+// buildGraphJSON serializes the nodes + edges for the 3D graph
+// hero (embedded as JSON in the page).
+func buildGraphJSON(users []models.User, edges []models.Edge) (string, error) {
+	type node struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}
+	payload := struct {
+		Nodes []node      `json:"nodes"`
+		Edges []models.Edge `json:"edges"`
+	}{}
+	for _, u := range users {
+		payload.Nodes = append(payload.Nodes, node{ID: u.ID, Name: u.Name})
+	}
+	payload.Edges = edges
+	b, err := json.Marshal(payload)
+	return string(b), err
 }
 
 // randHex returns n random hex chars (for todo ids).

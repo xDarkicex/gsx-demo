@@ -98,6 +98,8 @@ type DashData struct {
 
 	// Graph
 	Edges      []Edge
+	Users      []User
+	GraphJSON  string // 3D hero data (nodes + edges as JSON)
 	GraphMsg   string // flash notice on the graph page
 	GraphMsgOk bool   // notice is a success (green)
 

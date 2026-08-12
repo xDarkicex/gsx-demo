@@ -720,3 +720,20 @@ func (d *DB) IsFollowing(ctx context.Context, me, target string) (bool, error) {
 	}
 	return false, nil
 }
+
+// Users returns every user (for the graph visualization).
+func (d *DB) Users(ctx context.Context) ([]models.User, error) {
+	res, err := d.raw.Query(ctx, "SELECT id, email, password_hash, name, created_at FROM users ORDER BY name")
+	if err != nil {
+		return nil, err
+	}
+	var out []models.User
+	for _, r := range res.Results {
+		u, err := scanUser(r)
+		if err != nil {
+			continue
+		}
+		out = append(out, *u)
+	}
+	return out, nil
+}
