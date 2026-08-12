@@ -146,16 +146,8 @@
   lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
   scene.add(new THREE.LineSegments(lineGeo, lineMat));
 
-  // Highlight layer: the focused node's edges, rebuilt on focus.
-  var hlMat = new THREE.LineBasicMaterial({
-    color: 0x2dd4bf,
-    transparent: true,
-    opacity: 0.95,
-  });
-  var hlGeo = new THREE.BufferGeometry();
-  hlGeo.setAttribute('position', new THREE.Float32BufferAttribute([], 3));
-  var hlLines = new THREE.LineSegments(hlGeo, hlMat);
-  scene.add(hlLines);
+  // Highlight layer: created lazily when a node is focused (an
+  // empty-buffer geometry at init would throw and kill the scene).
 
   // --- focus: click a node to zoom to it and light its edges;
   // connected nodes glow red. Click elsewhere (or the node again)
@@ -180,16 +172,17 @@
     updateHighlight();
   }
 
+  var hlMat = new THREE.LineBasicMaterial({ color: 0x2dd4bf, transparent: true, opacity: 0.95 });
+  var hlLines = null;
+
   function updateHighlight() {
-    // restore base colors
+    // restore base colors + remove the old highlight layer
     meshList.forEach(function (m) {
       m.material.color.copy(baseColor[m.userData.id]);
     });
-    hlGeo.setAttribute('position', new THREE.Float32BufferAttribute([], 3));
-    if (!focus) {
-      lineMat.opacity = 0.35;
-      return;
-    }
+    if (hlLines) { scene.remove(hlLines); hlLines = null; }
+    lineMat.opacity = 0.35;
+    if (!focus) return;
     lineMat.opacity = 0.12; // dim the rest
     var verts = [];
     edges.forEach(function (e) {
@@ -201,7 +194,10 @@
       if (meshById[other]) meshById[other].material.color.set(0xff4d4d);
     });
     if (verts.length) {
+      var hlGeo = new THREE.BufferGeometry();
       hlGeo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+      hlLines = new THREE.LineSegments(hlGeo, hlMat);
+      scene.add(hlLines);
     }
     if (meshById[focus]) meshById[focus].material.color.set(0xffffff);
   }
