@@ -124,7 +124,7 @@ reference) against the nanite stack + libraVDB. Format per entry:
   including parameterized predicates; NULL semantics preserved. Demo reverted to the
   single-statement toggle.
 
-### G3. [nanite-gsx] @action body capture treats apostrophes in comments as string delimiters — OPEN
+### G3. [nanite-gsx] @action body capture treats apostrophes in comments as string delimiters — FIXED
 
 - **Tried**: an `@action` body containing the comment `// Reload the panels' data.`
 - **Happened**: `parse: unexpected EOF in @action string` — the `'` in "panels'" opened a
@@ -138,7 +138,9 @@ reference) against the nanite stack + libraVDB. Format per entry:
       return nil
   }
   ```
-- **Status**: open — demo workaround: no apostrophes in action-body comments.
+- **Status**: fixed — the body scanner now copies line and block comments verbatim; apostrophes
+  and braces inside comments neither open strings nor count toward the brace depth.
+  Regression test `TestE2E_ActionCommentApostrophe`. Demo workaround reverted.
 
 ### L7. [libraVDB] VERSIONS OF metadata value types — NOTE
 

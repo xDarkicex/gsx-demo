@@ -291,7 +291,7 @@ func RegisterEdgeListComponent(cr *render.ComponentRegistry) {
         props["msg"] = "created " + strings.Join(created, ", ") + " — edge added."
         props["ok"] = true
     }
-    // Reload the panel data.
+    // Reload the panels' data.
     es, err := db.Default.Edges(rc.Request.Context())
     if err != nil {
         return err
