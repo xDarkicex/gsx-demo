@@ -2175,3 +2175,6 @@ form button {
 }
 
 .counter-card { padding: 22px; }
+
+.dash-brand-row { text-decoration: none; display: flex; align-items: center; gap: 10px; }
+.dash-brand-row:hover .dash-brand { color: var(--accent); }

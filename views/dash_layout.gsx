@@ -22,13 +22,13 @@ func DashLayout(p models.Page) {
         <body class="dash-body">
             <div class="dash-shell">
                 <aside class="dash-sidebar">
-                    <div class="dash-brand-row">
+                    <a class="dash-brand-row" href="/" title="Back to the homepage">
                         <span class="brand-mark">g</span>
                         <div>
                             <div class="dash-brand">gsx-studio</div>
                             <div class="sidebar-caption">data workspace</div>
                         </div>
-                    </div>
+                    </a>
 
                     <div class="workspace-switcher">
                         <div class="sidebar-caption">Workspace</div>
