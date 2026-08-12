@@ -1721,19 +1721,19 @@ form button {
   background: rgba(159, 181, 207, 0.13);
 }
 
-.dashboard-content .uk-button-ghost {
+.dash-main .uk-button-ghost {
   border: 1px solid transparent;
   color: #9aa8b8;
   background: transparent;
 }
 
-.dashboard-content .uk-button-ghost:hover {
+.dash-main .uk-button-ghost:hover {
   border-color: rgba(240, 127, 145, 0.22);
   color: #ff9aaa;
   background: rgba(240, 127, 145, 0.08);
 }
 
-.dashboard-content .uk-button-danger {
+.dash-main .uk-button-danger {
   border-color: rgba(240, 127, 145, 0.2);
   color: #ffacb9;
   background: rgba(240, 127, 145, 0.1);

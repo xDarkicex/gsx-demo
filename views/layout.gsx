@@ -8,11 +8,11 @@ func AppLayout(p models.Page) {
             <meta charset="utf-8" />
             <meta name="viewport" content="width=device-width, initial-scale=1" />
             <title>gsx-demo — nanite · nanite-render · nanite-gsx · libraVDB</title>
-            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.21.13/dist/css/uikit.min.css" />
+            <link rel="stylesheet" href="/static/vendor/uikit.min.css" />
             <link rel="stylesheet" href="/static/app.css" />
-            <script defer src="https://cdn.jsdelivr.net/npm/uikit@3.21.13/dist/js/uikit.min.js"></script>
-            <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
-            <script defer src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
+            <script defer src="/static/vendor/uikit.min.js"></script>
+            <script defer src="/static/vendor/alpine.min.js"></script>
+            <script defer src="/static/vendor/htmx.min.js"></script>
         </head>
         <body>
             <Navbar page={p} />

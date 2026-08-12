@@ -13,11 +13,11 @@ func DashLayout(p models.Page) {
             <link rel="preconnect" href="https://fonts.googleapis.com">
             <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
             <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.21.13/dist/css/uikit.min.css" />
+            <link rel="stylesheet" href="/static/vendor/uikit.min.css" />
             <link rel="stylesheet" href="/static/app.css?v=4" />
-            <script defer src="https://cdn.jsdelivr.net/npm/uikit@3.21.13/dist/js/uikit.min.js"></script>
-            <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
-            <script defer src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.4/dist/htmx.min.js"></script>
+            <script defer src="/static/vendor/uikit.min.js"></script>
+            <script defer src="/static/vendor/alpine.min.js"></script>
+            <script defer src="/static/vendor/htmx.min.js"></script>
         </head>
         <body class="dash-body">
             <div class="dash-shell">

@@ -142,6 +142,17 @@ reference) against the nanite stack + libraVDB. Format per entry:
   and braces inside comments neither open strings nor count toward the brace depth.
   Regression test `TestE2E_ActionCommentApostrophe`. Demo workaround reverted.
 
+### N1. [dependency] Alpine 3.14.1 x-show reactivity regression — WORKAROUND
+
+- **Tried**: `@click="newTodo = true"` toggling an `x-show="newTodo"` modal (the New
+  todo button on the table editor).
+- **Happened**: the click updates the state (an `x-text` probe shows `true`), but
+  `x-show` never re-renders — the element stays `display: none`. Alpine 3.13.10
+  behaves correctly in the identical test.
+- **Desired**: x-show reacts to state changes.
+- **Status**: pinned to alpinejs 3.13.10 (vendored at /static/vendor/alpine.min.js)
+  until the upstream regression is fixed.
+
 ### L7. [libraVDB] VERSIONS OF metadata value types — NOTE
 
 - `version` comes back as a uint type (not int), and `version_start`/`version_end` as `time.Time`
