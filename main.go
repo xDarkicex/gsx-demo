@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -66,6 +67,8 @@ func main() {
 	views.RegisterGraphPage(gsxEngine)
 	views.RegisterSettingsPage(gsxEngine)
 	views.RegisterErrorPage(gsxEngine)
+	views.RegisterSignupPage(gsxEngine)
+	views.RegisterProfilePage(gsxEngine)
 	views.RegisterTodoTable(gsxEngine)
 	views.RegisterTodoRow(gsxEngine)
 	views.RegisterSQLResults(gsxEngine)
@@ -104,7 +107,12 @@ func main() {
 	r.Get("/", home(reg))
 	r.Get("/login", loginPage(reg))
 	r.Post("/login", loginPost(reg))
+	r.Get("/signup", signupPage(reg))
+	r.Post("/signup", signupPost(reg))
 	r.Post("/logout", logout)
+	prof := r.Group("/profile", auth.RequireUser)
+	prof.Get("/", profile(reg))
+	prof.Get("/:id", profile(reg))
 	r.Get("/widgets/clock", clockWidget(reg))
 	r.Get("/dashboard/partial/following", followingPartial(reg))
 
@@ -656,6 +664,144 @@ func followingPartial(reg *render.Registry) nanite.HandlerFunc {
 		}
 		page := models.Page{User: u, Dashboard: &models.DashData{Following: following}}
 		if err := nano.Render(c, reg, "gsx", "Following", page); err != nil {
+			fail(reg, c, err)
+		}
+	}
+}
+
+// signupPage renders the registration card.
+func signupPage(reg *render.Registry) nanite.HandlerFunc {
+	return func(c *nanite.Context) {
+		page := models.Page{Signup: &models.SignupData{}}
+		if err := renderPage(reg, c, "SignupPage", page); err != nil {
+			fail(reg, c, err)
+		}
+	}
+}
+
+// signupPost validates, creates the user, and auto-logs in.
+func signupPost(reg *render.Registry) nanite.HandlerFunc {
+	return func(c *nanite.Context) {
+		ctx := c.Request.Context()
+		name, email, password := c.FormValue("name"), c.FormValue("email"), c.FormValue("password")
+		errMsg := ""
+		switch {
+		case name == "" || email == "" || password == "":
+			errMsg = "All fields are required."
+		case len(password) < 6:
+			errMsg = "Password must be at least 6 characters."
+		case !strings.Contains(email, "@"):
+			errMsg = "Enter a valid email address."
+		}
+		if errMsg == "" {
+			existing, err := db.Default.UserByEmail(ctx, email)
+			if err != nil {
+				fail(reg, c, err)
+				return
+			}
+			if existing != nil {
+				errMsg = "That email is already registered."
+			}
+		}
+		if errMsg != "" {
+			page := models.Page{Signup: &models.SignupData{Error: errMsg, Name: name, Email: email}}
+			if err := renderPage(reg, c, "SignupPage", page); err != nil {
+				fail(reg, c, err)
+			}
+			return
+		}
+
+		hash, err := auth.HashPassword(password)
+		if err != nil {
+			fail(reg, c, err)
+			return
+		}
+		id := sanitizeID(strings.ToLower(strings.SplitN(email, "@", 2)[0]))
+		u := &models.User{
+			ID: id, Name: name, Email: email,
+			PasswordHash: hash, CreatedAt: time.Now().UTC().Format(time.RFC3339),
+		}
+		if err := db.Default.CreateUser(ctx, u); err != nil {
+			page := models.Page{Signup: &models.SignupData{Error: "Could not create the account.", Name: name, Email: email}}
+			if err := renderPage(reg, c, "SignupPage", page); err != nil {
+				fail(reg, c, err)
+			}
+			return
+		}
+		tok, err := auth.Create(u)
+		if err != nil {
+			fail(reg, c, err)
+			return
+		}
+		http.SetCookie(c.Writer, &http.Cookie{
+			Name: auth.SessionCookie, Value: tok, Path: "/",
+			HttpOnly: true, SameSite: http.SameSiteLaxMode,
+			MaxAge: int(auth.SessionTTL.Seconds()),
+		})
+		c.Redirect(http.StatusFound, "/profile")
+	}
+}
+
+// sanitizeID keeps [a-z0-9_-] from the email local part for the
+// user id; falls back to a random id when empty.
+func sanitizeID(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+			b.WriteRune(r)
+		}
+	}
+	if b.Len() == 0 {
+		return "user-" + randHex(6)
+	}
+	return b.String()
+}
+
+// profile renders a user's profile — self at /profile, anyone at
+// /profile/:id. Stats come from the FOLLOWS graph.
+func profile(reg *render.Registry) nanite.HandlerFunc {
+	return func(c *nanite.Context) {
+		ctx := c.Request.Context()
+		me := auth.CurrentUser(c)
+		id, has := c.GetParam("id")
+		if !has || id == "" {
+			id = me.ID
+		}
+		u, err := db.Default.UserByID(ctx, id)
+		if err != nil || u == nil {
+			renderError(reg, c, http.StatusNotFound,
+				"Not Found", "No such user.")
+			return
+		}
+		following, err := db.Default.Following(ctx, u.ID)
+		if err != nil {
+			fail(reg, c, err)
+			return
+		}
+		followers, err := db.Default.FollowerCount(ctx, u.ID)
+		if err != nil {
+			fail(reg, c, err)
+			return
+		}
+		isSelf := u.ID == me.ID
+		followed := false
+		if !isSelf {
+			followed, err = db.Default.IsFollowing(ctx, me.ID, u.ID)
+			if err != nil {
+				fail(reg, c, err)
+				return
+			}
+		}
+		page := models.Page{
+			User: me,
+			Dash: &models.DashData{Active: ""},
+			Profile: &models.ProfileData{
+				User: u, IsSelf: isSelf, Followed: followed,
+				FollowingCount: len(following), FollowerCount: followers,
+				Following: following,
+			},
+		}
+		if err := renderDash(reg, c, "ProfilePage", page); err != nil {
 			fail(reg, c, err)
 		}
 	}

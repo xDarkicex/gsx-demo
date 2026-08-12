@@ -2002,3 +2002,22 @@ form button {
 }
 .error-card .auth-subtitle { color: var(--muted); word-break: break-word; }
 .error-card .form-actions { justify-content: center; }
+
+/* profile page */
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 8px 0 24px;
+}
+.profile-avatar {
+  width: 64px;
+  height: 64px;
+  font-size: 1.6rem;
+  border-radius: 16px;
+}
+.profile-meta h1 { margin: 0 0 2px; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; }
+.profile-meta p { margin: 0; }
+.profile-follow { list-style: none; margin-left: auto; }
+.profile-head a { color: var(--accent); }
+.profile-head a:hover { text-decoration: underline; }

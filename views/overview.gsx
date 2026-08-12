@@ -56,7 +56,7 @@ func Overview(p models.Page) {
                 </div>
                 <ul class="clean-list">
                     @for _, f := range p.Dash.Following {
-                        <li><span class="list-avatar">{userInitial(f.Name)}</span><span class="list-copy"><strong>{f.Name}</strong><span>&#64;{f.ID}</span></span></li>
+                        <li><span class="list-avatar">{userInitial(f.Name)}</span><span class="list-copy"><strong>{f.Name}</strong><span><a href={"/profile/" + f.ID}>&#64;{f.ID}</a></span></span></li>
                     }
                     @if len(p.Dash.Following) == 0 {
                         <li class="empty-state">Nobody yet.</li>

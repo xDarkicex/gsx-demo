@@ -33,7 +33,7 @@ func Navbar(page models.Page) {
         <a href="/" class="brand">&lt;/&gt;&nbsp;gsx-demo</a>
         <div class="nav-right">
             @if page.User != nil {
-                <span class="nav-link muted">Signed in as {page.User.Name}</span>
+                <a class="nav-link muted" href="/profile">Signed in as {page.User.Name}</a>
                 <a class="nav-link" href="/dashboard">Dashboard</a>
                 <button class="btn btn-sm" @click="open = !open">
                     Menu ▾

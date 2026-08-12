@@ -21,6 +21,25 @@ type Page struct {
 	Dashboard *DashData
 	Dash      *DashData // authenticated dashboard pages
 	Error     *ErrorData // HTTP error page
+	Signup    *SignupData
+	Profile   *ProfileData
+}
+
+// SignupData feeds the registration page.
+type SignupData struct {
+	Error string
+	Name  string
+	Email string
+}
+
+// ProfileData feeds the profile page (self or another user).
+type ProfileData struct {
+	User           *User
+	IsSelf         bool
+	Followed       bool
+	FollowingCount int
+	FollowerCount  int
+	Following      []Following
 }
 
 // ErrorData feeds the error page (404/500).

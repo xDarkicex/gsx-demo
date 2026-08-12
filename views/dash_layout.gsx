@@ -64,7 +64,7 @@ func DashLayout(p models.Page) {
                         <div class="profile-row">
                             <span class="profile-avatar">{userInitial(p.User.Name)}</span>
                             <div class="profile-copy">
-                                <strong>{p.User.Name}</strong>
+                                <a href="/profile"><strong>{p.User.Name}</strong></a>
                                 <span>{p.User.Email}</span>
                             </div>
                         </div>

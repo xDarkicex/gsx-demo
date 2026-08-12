@@ -138,7 +138,7 @@ func EdgeList(props map[string]any) {
                         <span class="list-avatar">{userInitial(s.Name)}</span>
                         <span class="list-copy">
                             <strong>{s.Name}</strong>
-                            <span>&#64;{s.ID} · {s.Mutual} mutual</span>
+                            <span><a href={"/profile/" + s.ID}>&#64;{s.ID}</a> · {s.Mutual} mutual</span>
                         </span>
                     </li>
                 }

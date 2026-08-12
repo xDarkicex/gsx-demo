@@ -685,3 +685,33 @@ func (d *DB) DeleteSession(ctx context.Context, token string) error {
 		libravdb.QueryParams{"1": token})
 	return err
 }
+
+// FollowerCount returns how many users follow the given user
+// (inbound graph edges).
+func (d *DB) FollowerCount(ctx context.Context, id string) (int, error) {
+	es, err := d.Edges(ctx)
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, e := range es {
+		if e.To == id {
+			n++
+		}
+	}
+	return n, nil
+}
+
+// IsFollowing reports whether me follows target.
+func (d *DB) IsFollowing(ctx context.Context, me, target string) (bool, error) {
+	es, err := d.Edges(ctx)
+	if err != nil {
+		return false, err
+	}
+	for _, e := range es {
+		if e.From == me && e.To == target {
+			return true, nil
+		}
+	}
+	return false, nil
+}
