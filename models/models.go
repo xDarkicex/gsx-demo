@@ -20,6 +20,14 @@ type Page struct {
 	Login     *LoginData
 	Dashboard *DashData
 	Dash      *DashData // authenticated dashboard pages
+	Error     *ErrorData // HTTP error page
+}
+
+// ErrorData feeds the error page (404/500).
+type ErrorData struct {
+	Code    int
+	Title   string
+	Message string
 }
 
 // HomeData feeds the public homepage.
@@ -68,7 +76,8 @@ type DashData struct {
 	TemporalEnd   string
 
 	// Graph
-	Edges []Edge
+	Edges   []Edge
+	GraphMsg string // flash notice on the graph page
 
 	// Overview
 	Bars []Bar

@@ -58,6 +58,18 @@ func RenderGraphPage(c *render.ComponentContext, p models.Page, children func(c 
 	c.WriteString(` FOLLOWS`)
 	c.WriteString(`</div>`)
 	c.WriteString(`</div>`)
+	if p.Dash.GraphMsg != "" {
+		c.WriteString(`<div`)
+		c.WriteString(" class=\"notice notice-error\"")
+		c.WriteString(">")
+		c.WriteString(`<span`)
+		c.WriteString(" class=\"notice-icon\"")
+		c.WriteString(">")
+		c.WriteString(`✕`)
+		c.WriteString(`</span>`)
+		c.WriteString(html.EscapeString(fmt.Sprint(p.Dash.GraphMsg)))
+		c.WriteString(`</div>`)
+	}
 	c.WriteString(`<div`)
 	c.WriteString(" class=\"overview-grid\"")
 	c.WriteString(">")

@@ -1987,3 +1987,18 @@ form button {
 .graph-add-form .uk-input { flex: 1; }
 .graph-arrow { color: var(--muted); font-size: 1.05rem; }
 .clean-list .list-action { margin-left: auto; }
+
+/* error page */
+.error-card { text-align: center; }
+.error-code {
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  line-height: 1.1;
+}
+.error-card .auth-subtitle { color: var(--muted); word-break: break-word; }
+.error-card .form-actions { justify-content: center; }

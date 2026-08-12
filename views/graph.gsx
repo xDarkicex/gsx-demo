@@ -16,6 +16,10 @@ func GraphPage(p models.Page) {
         <div class="heading-chip"><span class="status-dot"></span> FOLLOWS</div>
     </div>
 
+    @if p.Dash.GraphMsg != "" {
+        <div class="notice notice-error"><span class="notice-icon">✕</span>{p.Dash.GraphMsg}</div>
+    }
+
     <div class="overview-grid">
         <section class="dashboard-card">
             <div class="card-heading">

@@ -64,6 +64,7 @@ func main() {
 	views.RegisterTemporalPage(gsxEngine)
 	views.RegisterGraphPage(gsxEngine)
 	views.RegisterSettingsPage(gsxEngine)
+	views.RegisterErrorPage(gsxEngine)
 
 	// 3. ComponentRegistry — decorated components dispatched by
 	// name: @action (Follow), @async/@fallback/@oob (LiveClock),
@@ -81,7 +82,13 @@ func main() {
 	reg.AttachComponents(cr)
 
 	// 4. Router.
-	r := nanite.New(nanite.WithPanicRecovery(true))
+	r := nanite.New(nanite.WithConfig(nanite.Config{
+		RecoverPanics: true,
+		NotFoundHandler: func(c *nanite.Context) {
+			renderError(reg, c, http.StatusNotFound,
+				"Not Found", "The page you're looking for doesn't exist.")
+		},
+	}))
 	r.ServeStatic("/static", "./public")
 
 	r.Get("/", home(reg))
@@ -128,11 +135,29 @@ func main() {
 	}
 }
 
-// fail logs the error and writes a plain 500. c.Error alone only
-// stores the error; without error middleware nothing is written.
-func fail(c *nanite.Context, err error) {
+// fail logs the error and renders the error page at 500.
+func fail(reg *render.Registry, c *nanite.Context, err error) {
 	log.Printf("handler error: %v", err)
-	c.String(http.StatusInternalServerError, "Internal Server Error")
+	renderError(reg, c, http.StatusInternalServerError,
+		"Internal Server Error", err.Error())
+}
+
+// renderError renders the ErrorPage view at the given status.
+// The status is set first — writing it after the body would leave
+// the default 200 on the wire.
+func renderError(reg *render.Registry, c *nanite.Context, status int, title, msg string) {
+	c.Status(status)
+	page := models.Page{User: auth.CurrentUser(c), Error: &models.ErrorData{
+		Code: status, Title: title, Message: msg,
+	}}
+	if err := nano.Page(reg, c).
+		Engine(render.CustomEngine("gsx")).
+		Layout("AppLayout").
+		View("ErrorPage").
+		With(page).
+		Render(); err != nil {
+		c.String(status, title)
+	}
 }
 
 // renderPage renders a view inside the gsx AppLayout.
@@ -149,17 +174,17 @@ func home(reg *render.Registry) nanite.HandlerFunc {
 	return func(c *nanite.Context) {
 		n, err := db.Default.Count(c.Request.Context())
 		if err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 			return
 		}
 		top, err := db.Default.Followers(c.Request.Context())
 		if err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 			return
 		}
 		clicks, err := db.Default.GetCounter(c.Request.Context())
 		if err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 			return
 		}
 		page := models.Page{
@@ -172,7 +197,7 @@ func home(reg *render.Registry) nanite.HandlerFunc {
 			},
 		}
 		if err := renderPage(reg, c, "Home", page); err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 		}
 	}
 }
@@ -181,7 +206,7 @@ func loginPage(reg *render.Registry) nanite.HandlerFunc {
 	return func(c *nanite.Context) {
 		page := models.Page{User: auth.CurrentUser(c), Login: &models.LoginData{}}
 		if err := renderPage(reg, c, "Login", page); err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 		}
 	}
 }
@@ -206,14 +231,14 @@ func loginPost(reg *render.Registry) nanite.HandlerFunc {
 			defer render.ReleaseContext(rc)
 			if err := reg.Page(rc).Engine(render.CustomEngine("gsx")).
 				Layout("AppLayout").View("Login").With(page).Render(); err != nil {
-				fail(c, err)
+				fail(reg, c, err)
 			}
 			return
 		}
 
 		tok, err := auth.Default.Create(u)
 		if err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 			return
 		}
 		http.SetCookie(c.Writer, &http.Cookie{
@@ -265,32 +290,32 @@ func overview(reg *render.Registry) nanite.HandlerFunc {
 
 		users, err := db.Default.Count(ctx)
 		if err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 			return
 		}
 		edges, err := db.Default.EdgeCount(ctx)
 		if err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 			return
 		}
 		todos, err := db.Default.TodoCount(ctx)
 		if err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 			return
 		}
 		clicks, err := db.Default.GetCounter(ctx)
 		if err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 			return
 		}
 		bars, err := db.Default.PriorityBars(ctx)
 		if err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 			return
 		}
 		following, err := db.Default.Following(ctx, u.ID)
 		if err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 			return
 		}
 		maxBar := 0
@@ -308,7 +333,7 @@ func overview(reg *render.Registry) nanite.HandlerFunc {
 		page.Dash.MaxBar = maxBar
 		page.Dash.Following = following
 		if err := renderDash(reg, c, "Overview", page); err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 		}
 	}
 }
@@ -320,7 +345,7 @@ func editor(reg *render.Registry) nanite.HandlerFunc {
 		filter := c.Query("q")
 		todos, err := db.Default.Todos(ctx, filter)
 		if err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 			return
 		}
 		page := dashBase(c, "editor")
@@ -335,7 +360,7 @@ func editor(reg *render.Registry) nanite.HandlerFunc {
 			page.Dash.TodoStat = "Todo deleted."
 		}
 		if err := renderDash(reg, c, "Editor", page); err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 		}
 	}
 }
@@ -352,7 +377,7 @@ func editorSave(reg *render.Registry) nanite.HandlerFunc {
 			Completed: c.FormValue("completed") == "true",
 		}
 		if err := db.Default.SaveTodo(c.Request.Context(), t); err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 			return
 		}
 		editorRedirect(c, "created")
@@ -363,7 +388,7 @@ func editorSave(reg *render.Registry) nanite.HandlerFunc {
 func editorToggle(reg *render.Registry) nanite.HandlerFunc {
 	return func(c *nanite.Context) {
 		if err := db.Default.ToggleTodo(c.Request.Context(), c.FormValue("id")); err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 			return
 		}
 		editorRedirect(c, "updated")
@@ -374,7 +399,7 @@ func editorToggle(reg *render.Registry) nanite.HandlerFunc {
 func editorDelete(reg *render.Registry) nanite.HandlerFunc {
 	return func(c *nanite.Context) {
 		if err := db.Default.DeleteTodo(c.Request.Context(), c.FormValue("id")); err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 			return
 		}
 		editorRedirect(c, "deleted")
@@ -395,7 +420,7 @@ func sqlPage(reg *render.Registry) nanite.HandlerFunc {
 		page := dashBase(c, "sql")
 		page.Dash.SQLText = "SELECT id, title, completed, priority FROM todos ORDER BY priority"
 		if err := renderDash(reg, c, "SQLPage", page); err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 		}
 	}
 }
@@ -414,7 +439,7 @@ func sqlRun(reg *render.Registry) nanite.HandlerFunc {
 			page.Dash.SQLRows = rows
 		}
 		if err := renderDash(reg, c, "SQLPage", page); err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 		}
 	}
 }
@@ -451,7 +476,7 @@ func temporal(reg *render.Registry) nanite.HandlerFunc {
 			page.Dash.SQLError = terr.Error()
 		}
 		if err := renderDash(reg, c, "TemporalPage", page); err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 		}
 	}
 }
@@ -463,12 +488,12 @@ func graph(reg *render.Registry) nanite.HandlerFunc {
 		u := auth.CurrentUser(c)
 		edges, err := db.Default.Edges(ctx)
 		if err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 			return
 		}
 		following, err := db.Default.Following(ctx, u.ID)
 		if err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 			return
 		}
 		followingSet := make(map[string]bool, len(following))
@@ -477,7 +502,7 @@ func graph(reg *render.Registry) nanite.HandlerFunc {
 		}
 		suggestions, err := db.Default.Suggest(ctx, u.ID)
 		if err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 			return
 		}
 		var fresh []models.Suggestion
@@ -490,21 +515,39 @@ func graph(reg *render.Registry) nanite.HandlerFunc {
 		page.Dash.Edges = edges
 		page.Dash.Following = following
 		page.Dash.Suggestions = fresh
+		page.Dash.GraphMsg = c.Query("msg")
 		if err := renderDash(reg, c, "GraphPage", page); err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 		}
 	}
 }
 
-// graphAdd creates a FOLLOWS edge (GRAPH_EDGES INSERT).
+// graphAdd creates a FOLLOWS edge (GRAPH_EDGES INSERT). Both
+// endpoints must already exist as records — a missing user flashes
+// the libraVDB error instead of 500ing.
 func graphAdd(reg *render.Registry) nanite.HandlerFunc {
 	return func(c *nanite.Context) {
 		from, to := c.FormValue("from"), c.FormValue("to")
-		if from != "" && to != "" {
-			if err := db.Default.Follow(c.Request.Context(), from, to); err != nil {
-				fail(c, err)
+		if from == "" || to == "" {
+			c.Redirect(http.StatusFound, "/dashboard/graph?msg="+
+				url.QueryEscape("Both endpoints are required."))
+			return
+		}
+		for _, id := range []string{from, to} {
+			u, err := db.Default.UserByID(c.Request.Context(), id)
+			if err != nil {
+				fail(reg, c, err)
 				return
 			}
+			if u == nil {
+				c.Redirect(http.StatusFound, "/dashboard/graph?msg="+
+					url.QueryEscape("user '"+id+"' not found — create the record first."))
+				return
+			}
+		}
+		if err := db.Default.Follow(c.Request.Context(), from, to); err != nil {
+			fail(reg, c, err)
+			return
 		}
 		c.Redirect(http.StatusFound, "/dashboard/graph")
 	}
@@ -514,7 +557,7 @@ func graphAdd(reg *render.Registry) nanite.HandlerFunc {
 func graphRemove(reg *render.Registry) nanite.HandlerFunc {
 	return func(c *nanite.Context) {
 		if err := db.Default.Unfollow(c.Request.Context(), c.FormValue("from"), c.FormValue("to")); err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 			return
 		}
 		c.Redirect(http.StatusFound, "/dashboard/graph")
@@ -526,7 +569,7 @@ func settings(reg *render.Registry) nanite.HandlerFunc {
 	return func(c *nanite.Context) {
 		page := dashBase(c, "settings")
 		if err := renderDash(reg, c, "SettingsPage", page); err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 		}
 	}
 }
@@ -539,7 +582,7 @@ func dashboard(reg *render.Registry) nanite.HandlerFunc {
 
 		following, err := db.Default.Following(ctx, u.ID)
 		if err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 			return
 		}
 		followingSet := make(map[string]bool, len(following))
@@ -548,7 +591,7 @@ func dashboard(reg *render.Registry) nanite.HandlerFunc {
 		}
 		suggestions, err := db.Default.Suggest(ctx, u.ID)
 		if err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 			return
 		}
 		var fresh []models.Suggestion
@@ -559,12 +602,12 @@ func dashboard(reg *render.Registry) nanite.HandlerFunc {
 		}
 		n, err := db.Default.Count(ctx)
 		if err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 			return
 		}
 		edges, err := db.Default.EdgeCount(ctx)
 		if err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 			return
 		}
 
@@ -582,7 +625,7 @@ func dashboard(reg *render.Registry) nanite.HandlerFunc {
 			},
 		}
 		if err := renderPage(reg, c, "Dashboard", page); err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 		}
 	}
 }
@@ -598,7 +641,7 @@ func clockWidget(reg *render.Registry) nanite.HandlerFunc {
 		rc.Loader = reg.DefaultLoader()
 		defer render.ReleaseContext(rc)
 		if err := reg.RenderComponent(bw, rc, "LiveClock", nil); err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 			return
 		}
 		// CloseSuspense tells the coordinator no more workers are
@@ -621,12 +664,12 @@ func followingPartial(reg *render.Registry) nanite.HandlerFunc {
 		}
 		following, err := db.Default.Following(c.Request.Context(), u.ID)
 		if err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 			return
 		}
 		page := models.Page{User: u, Dashboard: &models.DashData{Following: following}}
 		if err := nano.Render(c, reg, "gsx", "Following", page); err != nil {
-			fail(c, err)
+			fail(reg, c, err)
 		}
 	}
 }
