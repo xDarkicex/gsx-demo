@@ -43,14 +43,14 @@ func (d *DB) Seed(ctx context.Context) error {
 	// The todos table — the table editor's CRUD subject.
 	if _, err := d.raw.Query(ctx, `CREATE TABLE todos (
 		id TEXT PRIMARY KEY, title TEXT NOT NULL, completed BOOLEAN DEFAULT false,
-		priority INTEGER DEFAULT 3, due_at TIMESTAMP, tags JSON)`); err != nil {
+		priority INTEGER DEFAULT 3, opened_at TIMESTAMP, due_at TIMESTAMP, tags JSON)`); err != nil {
 		if !strings.Contains(err.Error(), "exists") {
 			return err
 		}
 	}
 	today := time.Now().UTC()
 	todos := []models.Todo{
-		{ID: "todo-1", Title: "Write the dashboard shell", Completed: true, Priority: 1, DueAt: today.AddDate(0, 0, -1).Format("2006-01-02 15:04:05"), Tags: `["dashboard","gsx"]`},
+		{ID: "todo-1", Title: "Write the dashboard shell", Completed: true, Priority: 1, OpenedAt: today.AddDate(0, 0, -3).Format("2006-01-02 15:04:05"), DueAt: today.AddDate(0, 0, -1).Format("2006-01-02 15:04:05"), Tags: `["dashboard","gsx"]`},
 		{ID: "todo-2", Title: "Ship table editor CRUD", Completed: false, Priority: 1, DueAt: today.AddDate(0, 0, 1).Format("2006-01-02 15:04:05"), Tags: `["editor"]`},
 		{ID: "todo-3", Title: "Test temporal VERSIONS OF", Completed: false, Priority: 2, DueAt: today.AddDate(0, 0, 2).Format("2006-01-02 15:04:05"), Tags: `["temporal","sql"]`},
 		{ID: "todo-4", Title: "Graph traversal page", Completed: false, Priority: 2, DueAt: today.AddDate(0, 0, 3).Format("2006-01-02 15:04:05"), Tags: `["graph"]`},

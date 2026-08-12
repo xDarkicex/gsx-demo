@@ -413,7 +413,7 @@ func atoi(v any) int {
 // Todos returns the todos table rows, optionally filtered by a
 // title substring (LIKE).
 func (d *DB) Todos(ctx context.Context, filter string) ([]models.Todo, error) {
-	sql := `SELECT id, title, completed, priority, due_at, tags FROM todos`
+	sql := `SELECT id, title, completed, priority, opened_at, due_at, tags FROM todos`
 	params := libravdb.QueryParams{}
 	if filter != "" {
 		sql += ` WHERE title LIKE $1 ORDER BY priority, id`
@@ -432,7 +432,8 @@ func (d *DB) Todos(ctx context.Context, filter string) ([]models.Todo, error) {
 			Title:     str(r.Metadata["title"]),
 			Completed: boolValue(r.Metadata["completed"]),
 			Priority:  atoi(r.Metadata["priority"]),
-			DueAt:     str(r.Metadata["due_at"]),
+			OpenedAt:  str(r.Metadata["opened_at"]),
+		DueAt:     str(r.Metadata["due_at"]),
 			Tags:      fmt.Sprint(r.Metadata["tags"]),
 		})
 	}
@@ -452,11 +453,11 @@ func (d *DB) SaveTodo(ctx context.Context, t *models.Todo) error {
 		tags = "[]"
 	}
 	_, err := d.raw.QueryWithParams(ctx,
-		`INSERT INTO todos (id, title, completed, priority, due_at, tags)
-		 VALUES ($1, $2, $3, $4, $5, $6)`,
+		`INSERT INTO todos (id, title, completed, priority, opened_at, due_at, tags)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		libravdb.QueryParams{
 			"1": t.ID, "2": t.Title, "3": t.Completed, "4": t.Priority,
-			"5": t.DueAt, "6": tags,
+			"5": t.OpenedAt, "6": t.DueAt, "7": tags,
 		})
 	return err
 }
@@ -630,7 +631,7 @@ func (d *DB) EnsureUser(ctx context.Context, id string) error {
 // TodoByID returns one todo row.
 func (d *DB) TodoByID(ctx context.Context, id string) (*models.Todo, error) {
 	res, err := d.raw.QueryWithParams(ctx,
-		`SELECT id, title, completed, priority, due_at, tags FROM todos WHERE id = $1`,
+		`SELECT id, title, completed, priority, opened_at, due_at, tags FROM todos WHERE id = $1`,
 		libravdb.QueryParams{"1": id})
 	if err != nil {
 		return nil, err
@@ -644,6 +645,7 @@ func (d *DB) TodoByID(ctx context.Context, id string) (*models.Todo, error) {
 		Title:     str(r.Metadata["title"]),
 		Completed: r.Metadata["completed"] == true,
 		Priority:  atoi(r.Metadata["priority"]),
+		OpenedAt:  str(r.Metadata["opened_at"]),
 		DueAt:     str(r.Metadata["due_at"]),
 		Tags:      fmt.Sprint(r.Metadata["tags"]),
 	}, nil

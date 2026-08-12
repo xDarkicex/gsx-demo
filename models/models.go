@@ -134,6 +134,7 @@ type Todo struct {
 	Title     string
 	Completed bool
 	Priority  int
+	OpenedAt  string
 	DueAt     string
 	Tags      string
 }

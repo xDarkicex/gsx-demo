@@ -2021,3 +2021,39 @@ form button {
 .profile-follow { list-style: none; margin-left: auto; }
 .profile-head a { color: var(--accent); }
 .profile-head a:hover { text-decoration: underline; }
+
+/* new todo modal */
+.todo-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.todo-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 8, 18, 0.72);
+  backdrop-filter: blur(4px);
+}
+.todo-modal-card {
+  position: relative;
+  width: 560px;
+  max-width: 94vw;
+  max-height: 88vh;
+  overflow: auto;
+  border-radius: 14px;
+}
+.modal-close {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+.modal-close:hover { color: var(--text); background: var(--panel-2); }
+[x-cloak] { display: none !important; }
