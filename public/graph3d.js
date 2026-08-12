@@ -114,17 +114,21 @@
   var maxDeg = 1;
   nodes.forEach(function (n) { if (degree[n.id] > maxDeg) maxDeg = degree[n.id]; });
 
-  var byId = {};
+  var baseColor = {};   // id → base THREE.Color
+  var meshById = {};   // id → mesh
+  var meshList = [];
   nodes.forEach(function (n) {
-    byId[n.id] = n;
     var t = degree[n.id] / maxDeg; // 0..1 popularity
     var color = new THREE.Color().setHSL(0.55 - 0.28 * t, 0.85, 0.42 + 0.2 * t);
+    baseColor[n.id] = color.clone();
     var r = 0.28 + 0.14 * t;
     var mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.35, metalness: 0.1 });
     var mesh = new THREE.Mesh(new THREE.SphereGeometry(r, 24, 24), mat);
     mesh.position.set(pos[n.id].x, pos[n.id].y, pos[n.id].z);
     mesh.userData = { id: n.id, name: n.name };
     scene.add(mesh);
+    meshById[n.id] = mesh;
+    meshList.push(mesh);
   });
 
   var lineMat = new THREE.LineBasicMaterial({
@@ -142,9 +146,66 @@
   lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
   scene.add(new THREE.LineSegments(lineGeo, lineMat));
 
-  // --- interaction: minimal orbit (drag / wheel / auto-rotate) ---
+  // Highlight layer: the focused node's edges, rebuilt on focus.
+  var hlMat = new THREE.LineBasicMaterial({
+    color: 0x2dd4bf,
+    transparent: true,
+    opacity: 0.95,
+  });
+  var hlGeo = new THREE.BufferGeometry();
+  hlGeo.setAttribute('position', new THREE.Float32BufferAttribute([], 3));
+  var hlLines = new THREE.LineSegments(hlGeo, hlMat);
+  scene.add(hlLines);
+
+  // --- focus: click a node to zoom to it and light its edges;
+  // connected nodes glow red. Click elsewhere (or the node again)
+  // to unfocus. ---
+  var focus = null;
+  var look = { x: 0, y: 0, z: 0 };
+  var targetDist = dist;
   var theta = 0, phi = 0;
   var isDown = false, prev = { x: 0, y: 0 };
+
+  function setFocus(id) {
+    focus = id;
+    if (id && pos[id]) {
+      var p = pos[id];
+      look = { x: p.x, y: p.y, z: p.z };
+      targetDist = Math.max(radius * 0.9,
+        Math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z) * 0.75 + 1.4);
+    } else {
+      look = { x: 0, y: 0, z: 0 };
+      targetDist = radius * 2.4 + 2.5;
+    }
+    updateHighlight();
+  }
+
+  function updateHighlight() {
+    // restore base colors
+    meshList.forEach(function (m) {
+      m.material.color.copy(baseColor[m.userData.id]);
+    });
+    hlGeo.setAttribute('position', new THREE.Float32BufferAttribute([], 3));
+    if (!focus) {
+      lineMat.opacity = 0.35;
+      return;
+    }
+    lineMat.opacity = 0.12; // dim the rest
+    var verts = [];
+    edges.forEach(function (e) {
+      if (e.from !== focus && e.to !== focus) return;
+      var a = pos[e.from], b = pos[e.to];
+      if (!a || !b) return;
+      verts.push(a.x, a.y, a.z, b.x, b.y, b.z);
+      var other = (e.from === focus) ? e.to : e.from;
+      if (meshById[other]) meshById[other].material.color.set(0xff4d4d);
+    });
+    if (verts.length) {
+      hlGeo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+    }
+    if (meshById[focus]) meshById[focus].material.color.set(0xffffff);
+  }
+
   canvas.addEventListener('mousedown', function (e) {
     isDown = true;
     prev = { x: e.clientX, y: e.clientY };
@@ -159,8 +220,21 @@
   });
   canvas.addEventListener('wheel', function (e) {
     e.preventDefault();
-    dist = Math.max(radius * 0.8, Math.min(radius * 5, dist + e.deltaY * 0.01 * radius));
+    targetDist = Math.max(radius * 0.8, Math.min(radius * 5,
+      targetDist + e.deltaY * 0.01 * radius));
   }, { passive: false });
+
+  // click-to-focus (only when the user didn't just drag)
+  canvas.addEventListener('click', function (ev) {
+    if (isDown) return;
+    var r = canvas.getBoundingClientRect();
+    mouse.x = ((ev.clientX - r.left) / r.width) * 2 - 1;
+    mouse.y = -((ev.clientY - r.top) / r.height) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    var hits = raycaster.intersectObjects(meshList);
+    var id = hits.length ? hits[0].object.userData.id : null;
+    setFocus(focus === id ? null : id);
+  });
 
   // hover tooltip
   var tip = document.createElement('div');
@@ -191,12 +265,13 @@
   function tick() {
     requestAnimationFrame(tick);
     if (!isDown) theta += 0.002; // slow auto-rotate when idle
+    dist += (targetDist - dist) * 0.05; // ease toward the focus distance
     camera.position.set(
-      dist * Math.sin(phi) * Math.cos(theta),
-      dist * Math.cos(phi) * 0.6,
-      dist * Math.sin(phi) * Math.sin(theta)
+      look.x + dist * Math.sin(phi) * Math.cos(theta),
+      look.y + dist * Math.cos(phi) * 0.6,
+      look.z + dist * Math.sin(phi) * Math.sin(theta)
     );
-    camera.lookAt(0, 0, 0);
+    camera.lookAt(look);
     renderer.render(scene, camera);
   }
   tick();
