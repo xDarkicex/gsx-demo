@@ -153,9 +153,11 @@ type Version struct {
 	VersionEnd   string
 }
 
-// Edge is one directed FOLLOWS edge (graph page).
+// Edge is one directed FOLLOWS edge (graph page). Lowercase JSON
+// keys — the 3D graph script reads e.from / e.to.
 type Edge struct {
-	From, To string
+	From string `json:"from"`
+	To   string `json:"to"`
 }
 
 // Bar is one bar of the overview chart (GROUP BY result).

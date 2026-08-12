@@ -77,9 +77,19 @@
   for (var i = 0; i < 220; i++) step();
 
   // --- scene ---
+  // Fit the camera to the settled layout's bounding radius.
+  var radius = 1.2;
+  nodes.forEach(function (n) {
+    var d = Math.sqrt(
+      pos[n.id].x * pos[n.id].x + pos[n.id].y * pos[n.id].y + pos[n.id].z * pos[n.id].z
+    );
+    if (d > radius) radius = d;
+  });
+
   var scene = new THREE.Scene();
-  var camera = new THREE.PerspectiveCamera(55, canvas.clientWidth / canvas.clientHeight, 0.1, 100);
-  camera.position.set(0, 2, 11);
+  var camera = new THREE.PerspectiveCamera(55, canvas.clientWidth / canvas.clientHeight, 0.1, 200);
+  var dist = radius * 2.4 + 2.5;
+  camera.position.set(0, radius * 0.4, dist);
 
   var renderer;
   try {
@@ -133,7 +143,7 @@
   scene.add(new THREE.LineSegments(lineGeo, lineMat));
 
   // --- interaction: minimal orbit (drag / wheel / auto-rotate) ---
-  var theta = 0, phi = 0, dist = 11;
+  var theta = 0, phi = 0;
   var isDown = false, prev = { x: 0, y: 0 };
   canvas.addEventListener('mousedown', function (e) {
     isDown = true;
@@ -149,7 +159,7 @@
   });
   canvas.addEventListener('wheel', function (e) {
     e.preventDefault();
-    dist = Math.max(4, Math.min(20, dist + e.deltaY * 0.01));
+    dist = Math.max(radius * 0.8, Math.min(radius * 5, dist + e.deltaY * 0.01 * radius));
   }, { passive: false });
 
   // hover tooltip
