@@ -124,6 +124,22 @@ reference) against the nanite stack + libraVDB. Format per entry:
   including parameterized predicates; NULL semantics preserved. Demo reverted to the
   single-statement toggle.
 
+### G3. [nanite-gsx] @action body capture treats apostrophes in comments as string delimiters — OPEN
+
+- **Tried**: an `@action` body containing the comment `// Reload the panels' data.`
+- **Happened**: `parse: unexpected EOF in @action string` — the `'` in "panels'" opened a
+  string, which ran to the end of the file.
+- **Desired**: comment contents (and string contents generally) are skipped correctly during
+  raw action-body capture — apostrophes inside `//` comments must not open strings.
+- **Repro**:
+  ```gsx
+  @action Add(rc *render.RenderContext, props map[string]any) error {
+      // The panels' data reloads here.
+      return nil
+  }
+  ```
+- **Status**: open — demo workaround: no apostrophes in action-body comments.
+
 ### L7. [libraVDB] VERSIONS OF metadata value types — NOTE
 
 - `version` comes back as a uint type (not int), and `version_start`/`version_end` as `time.Time`

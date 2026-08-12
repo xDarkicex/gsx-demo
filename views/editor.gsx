@@ -1,8 +1,11 @@
 @import "github.com/xDarkicex/gsx-demo/models"
+@import "github.com/xDarkicex/gsx-demo/internal/db"
+@import "errors"
 
 // Editor is the Table Editor — raw relational CRUD against the
-// todos table: filter, insert, toggle, delete. Mutations are plain
-// POST handlers (PRG) exercising libraVDB's SQL CRUD surface.
+// todos table, driven by HTMX: the search refetches the table
+// (debounced), Save swaps the table, and each row toggles/deletes
+// in place via colocated @actions.
 func Editor(p models.Page) {
     <div class="page-heading">
         <div>
@@ -18,12 +21,13 @@ func Editor(p models.Page) {
     }
 
     <div class="editor-toolbar" x-data={map[string]any{"newTodo": false}}>
-        <form method="get" action="/dashboard/editor" class="search-form">
+        <form class="search-form" hx-get="/dashboard/editor/table" hx-target="#todo-table"
+            hx-trigger="input changed delay:300ms" hx-swap="outerHTML">
             <label class="sr-only" for="todo-search">Search todos</label>
             <div class="search-input-wrap">
                 <span class="search-icon">⌕</span>
-                <input id="todo-search" class="uk-input search-input" type="search" name="q" placeholder="Search by title…"
-                    value={p.Dash.TodoFilter} />
+                <input id="todo-search" class="uk-input search-input" type="search" name="q"
+                    placeholder="Search by title…" value={p.Dash.TodoFilter} />
             </div>
             <button type="submit" class="uk-button uk-button-secondary search-button">Search</button>
         </form>
@@ -33,7 +37,9 @@ func Editor(p models.Page) {
     </div>
 
     <div class="new-todo-panel" x-show="newTodo" x-cloak>
-        <form method="post" action="/dashboard/editor/save" class="dashboard-card">
+        <form method="post" class="dashboard-card"
+            hx-post="/_nano/action/TodoTable/Save"
+            hx-target="#todo-table" hx-swap="outerHTML">
             <div class="card-heading">
                 <div>
                     <div class="card-kicker">Create record</div>
@@ -58,13 +64,50 @@ func Editor(p models.Page) {
         </form>
     </div>
 
+    <div id="todo-table">
+        <TodoTable props={map[string]any{"todos": p.Dash.Todos, "filter": p.Dash.TodoFilter}} />
+    </div>
+}
+
+// TodoTable renders the records table. Its Save action inserts a
+// row and re-renders the table, which HTMX swaps in place.
+@action Save(rc *render.RenderContext, props map[string]any) error {
+    title, _ := props["title"].(string)
+    if title == "" {
+        return errors.New("title is required")
+    }
+    dueAt, _ := props["due_at"].(string)
+    tags, _ := props["tags"].(string)
+    t := &models.Todo{
+        Title:     title,
+        Priority:  3,
+        DueAt:     dueAt,
+        Tags:      tags,
+        Completed: props["completed"] == true,
+    }
+    if p, ok := props["priority"].(int); ok && p >= 1 && p <= 5 {
+        t.Priority = p
+    }
+    if err := db.Default.SaveTodo(rc.Request.Context(), t); err != nil {
+        return err
+    }
+    ts, err := db.Default.Todos(rc.Request.Context(), "")
+    if err != nil {
+        return err
+    }
+    props["todos"] = ts
+    props["filter"] = ""
+    return nil
+}
+
+func TodoTable(props map[string]any) {
     <section class="dashboard-card table-card">
         <div class="table-card-header">
             <div>
                 <div class="card-kicker">All records</div>
                 <h2>Todo list</h2>
             </div>
-            <span class="record-count">{len(p.Dash.Todos)} records</span>
+            <span class="record-count">{len(props["todos"].([]models.Todo))} records</span>
         </div>
         <div class="table-scroll">
             <table class="uk-table todo-table">
@@ -79,42 +122,84 @@ func Editor(p models.Page) {
                     </tr>
                 </thead>
                 <tbody>
-                    @for _, t := range p.Dash.Todos {
-                        <tr class={todoRowClass(t.Completed)}>
-                            <td class="todo-title-cell"><span class={todoMarkerClass(t.Completed)}></span><strong>{t.Title}</strong></td>
-                            <td>
-                                @if t.Completed {
-                                    <span class="status-pill status-done">done</span>
-                                } @else {
-                                    <span class="status-pill status-open">open</span>
-                                }
-                            </td>
-                            <td><span class="priority-pill">P{t.Priority}</span></td>
-                            <td class="muted">{t.DueAt}</td>
-                            <td class="muted small">{t.Tags}</td>
-                            <td class="row-actions">
-                                <form method="post" action="/dashboard/editor/toggle" class="action-form">
-                                    <input type="hidden" name="id" value={t.ID} />
-                                    <input type="hidden" name="q" value={p.Dash.TodoFilter} />
-                                    @if t.Completed {
-                                        <button type="submit" class="uk-button uk-button-small uk-button-secondary action-button">Mark open</button>
-                                    } @else {
-                                        <button type="submit" class="uk-button uk-button-small uk-button-secondary action-button">Mark done</button>
-                                    }
-                                </form>
-                                <form method="post" action="/dashboard/editor/delete" class="action-form">
-                                    <input type="hidden" name="id" value={t.ID} />
-                                    <input type="hidden" name="q" value={p.Dash.TodoFilter} />
-                                    <button type="submit" class="uk-button uk-button-small uk-button-ghost action-button action-delete">Delete</button>
-                                </form>
-                            </td>
-                        </tr>
+                    @for _, t := range props["todos"].([]models.Todo) {
+                        <TodoRow props={map[string]any{
+                            "id": t.ID, "title": t.Title, "completed": t.Completed,
+                            "priority": t.Priority, "due_at": t.DueAt, "tags": t.Tags,
+                        }} />
                     }
-                    @if len(p.Dash.Todos) == 0 {
+                    @if len(props["todos"].([]models.Todo)) == 0 {
                         <tr><td colspan="6" class="empty-table">No todos match your search.</td></tr>
                     }
                 </tbody>
             </table>
         </div>
     </section>
+}
+
+// TodoRow is one table row. Its actions toggle and delete the
+// record in place — HTMX swaps just the row.
+@action Toggle(rc *render.RenderContext, props map[string]any) error {
+    id := props["id"].(string)
+    if err := db.Default.ToggleTodo(rc.Request.Context(), id); err != nil {
+        return err
+    }
+    // Reload the full record — the re-render needs every field,
+    // not just the id from the form.
+    t, err := db.Default.TodoByID(rc.Request.Context(), id)
+    if err != nil {
+        return err
+    }
+    props["id"] = t.ID
+    props["title"] = t.Title
+    props["completed"] = t.Completed
+    props["priority"] = t.Priority
+    props["due_at"] = t.DueAt
+    props["tags"] = t.Tags
+    return nil
+}
+
+@action Delete(rc *render.RenderContext, props map[string]any) error {
+    id := props["id"].(string)
+    if err := db.Default.DeleteTodo(rc.Request.Context(), id); err != nil {
+        return err
+    }
+    return nil // htmx swap:delete removes the row; body ignored
+}
+
+func TodoRow(props map[string]any) {
+    <tr class={todoRowClass(props["completed"] == true)}>
+        <td class="todo-title-cell"><span class={todoMarkerClass(props["completed"] == true)}></span><strong>{props["title"]}</strong></td>
+        <td>
+            @if props["completed"] == true {
+                <span class="status-pill status-done">done</span>
+            } @else {
+                <span class="status-pill status-open">open</span>
+            }
+        </td>
+        <td><span class="priority-pill">P{props["priority"]}</span></td>
+        <td class="muted">{props["due_at"]}</td>
+        <td class="muted small">{props["tags"]}</td>
+        <td class="row-actions">
+            <form class="action-form"
+                hx-post="/_nano/action/TodoRow/Toggle"
+                hx-target="closest tr" hx-swap="outerHTML">
+                <input type="hidden" name="id" value={props["id"].(string)} />
+                <input type="hidden" name="completed" value={props["completed"]} />
+                <button type="submit" class="uk-button uk-button-small uk-button-secondary action-button">
+                    @if props["completed"] == true {
+                        Mark open
+                    } @else {
+                        Mark done
+                    }
+                </button>
+            </form>
+            <form class="action-form"
+                hx-post="/_nano/action/TodoRow/Delete"
+                hx-target="closest tr" hx-swap="delete">
+                <input type="hidden" name="id" value={props["id"].(string)} />
+                <button type="submit" class="uk-button uk-button-small uk-button-ghost action-button action-delete">Delete</button>
+            </form>
+        </td>
+    </tr>
 }

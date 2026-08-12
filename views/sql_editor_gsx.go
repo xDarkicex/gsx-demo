@@ -42,8 +42,9 @@ func RenderSQLPage(c *render.ComponentContext, p models.Page, children func(c *r
 	c.WriteString(`…`)
 	c.WriteString(`</p>`)
 	c.WriteString(`<form`)
-	c.WriteString(" method=\"post\"")
-	c.WriteString(" action=\"/dashboard/sql/run\"")
+	c.WriteString(" hx-post=\"/dashboard/sql/run\"")
+	c.WriteString(" hx-target=\"#sql-results\"")
+	c.WriteString(" hx-swap=\"outerHTML\"")
 	c.WriteString(" class=\"uk-margin-bottom\"")
 	c.WriteString(">")
 	c.WriteString(`<textarea`)
@@ -64,18 +65,40 @@ func RenderSQLPage(c *render.ComponentContext, p models.Page, children func(c *r
 	c.WriteString(`</button>`)
 	c.WriteString(`</div>`)
 	c.WriteString(`</form>`)
-	if p.Dash.SQLError != "" {
+	c.WriteString(`<div`)
+	c.WriteString(" id=\"sql-results\"")
+	c.WriteString(">")
+	if err := RenderSQLResults(c, map[string]any{
+            "error": p.Dash.SQLError, "columns": p.Dash.SQLColumns,
+            "rows": p.Dash.SQLRows, "text": p.Dash.SQLText,
+        }, nil); err != nil { return err }
+	c.WriteString(`</div>`)
+return nil
+}
+
+func RegisterSQLPage(e *gsx.Engine) {
+	e.Register("SQLPage", func(c *render.ComponentContext, data any) error {
+	return RenderSQLPage(c, data.(models.Page), nil)
+	})
+}
+
+
+
+type SQLResults struct{}
+
+func RenderSQLResults(c *render.ComponentContext, props map[string]any, children func(c *render.ComponentContext) error) error {
+	if props["error"].(string) != "" {
 		c.WriteString(`<div`)
 		c.WriteString(" class=\"uk-alert uk-alert-danger\"")
 		c.WriteString(">")
 		c.WriteString(`<pre`)
 		c.WriteString(" class=\"uk-margin-remove\"")
 		c.WriteString(">")
-		c.WriteString(html.EscapeString(fmt.Sprint(p.Dash.SQLError)))
+		c.WriteString(html.EscapeString(fmt.Sprint(props["error"].(string))))
 		c.WriteString(`</pre>`)
 		c.WriteString(`</div>`)
 	}
-	if p.Dash.SQLColumns != nil {
+	if props["columns"] != nil {
 		c.WriteString(`<div`)
 		c.WriteString(" class=\"uk-card uk-card-default\"")
 		c.WriteString(">")
@@ -85,7 +108,7 @@ func RenderSQLPage(c *render.ComponentContext, p models.Page, children func(c *r
 		c.WriteString(`<div`)
 		c.WriteString(" class=\"muted small\"")
 		c.WriteString(">")
-		c.WriteString(html.EscapeString(fmt.Sprint(len(p.Dash.SQLRows))))
+		c.WriteString(html.EscapeString(fmt.Sprint(len(props["rows"].([][]string)))))
 		c.WriteString(` rows`)
 		c.WriteString(`</div>`)
 		c.WriteString(`</div>`)
@@ -97,7 +120,7 @@ func RenderSQLPage(c *render.ComponentContext, p models.Page, children func(c *r
 		c.WriteString(">")
 		c.WriteString(`<thead>`)
 		c.WriteString(`<tr>`)
-		for _, __c := range p.Dash.SQLColumns {
+		for _, __c := range props["columns"].([]string) {
 			c.WriteString(`<th>`)
 			c.WriteString(html.EscapeString(fmt.Sprint(__c)))
 			c.WriteString(`</th>`)
@@ -105,7 +128,7 @@ func RenderSQLPage(c *render.ComponentContext, p models.Page, children func(c *r
 		c.WriteString(`</tr>`)
 		c.WriteString(`</thead>`)
 		c.WriteString(`<tbody>`)
-		for _, row := range p.Dash.SQLRows {
+		for _, row := range props["rows"].([][]string) {
 			c.WriteString(`<tr>`)
 			for _, cell := range row {
 				c.WriteString(`<td`)
@@ -116,11 +139,11 @@ func RenderSQLPage(c *render.ComponentContext, p models.Page, children func(c *r
 			}
 			c.WriteString(`</tr>`)
 		}
-		if len(p.Dash.SQLRows) == 0 {
+		if len(props["rows"].([][]string)) == 0 {
 			c.WriteString(`<tr>`)
 			c.WriteString(`<td`)
 			c.WriteString(" colspan=\"")
-			c.WriteString(html.EscapeString(fmt.Sprint(len(p.Dash.SQLColumns))))
+			c.WriteString(html.EscapeString(fmt.Sprint(len(props["columns"].([]string)))))
 			c.WriteString("\"")
 			c.WriteString(" class=\"muted\"")
 			c.WriteString(">")
@@ -136,9 +159,9 @@ func RenderSQLPage(c *render.ComponentContext, p models.Page, children func(c *r
 return nil
 }
 
-func RegisterSQLPage(e *gsx.Engine) {
-	e.Register("SQLPage", func(c *render.ComponentContext, data any) error {
-	return RenderSQLPage(c, data.(models.Page), nil)
+func RegisterSQLResults(e *gsx.Engine) {
+	e.Register("SQLResults", func(c *render.ComponentContext, data any) error {
+	return RenderSQLResults(c, data.(map[string]any), nil)
 	})
 }
 

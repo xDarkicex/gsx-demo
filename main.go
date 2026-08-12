@@ -19,7 +19,6 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
@@ -66,6 +65,11 @@ func main() {
 	views.RegisterGraphPage(gsxEngine)
 	views.RegisterSettingsPage(gsxEngine)
 	views.RegisterErrorPage(gsxEngine)
+	views.RegisterTodoTable(gsxEngine)
+	views.RegisterTodoRow(gsxEngine)
+	views.RegisterSQLResults(gsxEngine)
+	views.RegisterEdgeList(gsxEngine)
+	views.RegisterEdgeRow(gsxEngine)
 
 	// 3. ComponentRegistry — decorated components dispatched by
 	// name: @action (Follow), @async/@fallback/@oob (LiveClock),
@@ -74,6 +78,10 @@ func main() {
 	views.RegisterFollowButtonComponent(cr)
 	views.RegisterLiveClockComponent(cr)
 	views.RegisterCounterWidgetComponent(cr)
+	views.RegisterTodoTableComponent(cr)
+	views.RegisterTodoRowComponent(cr)
+	views.RegisterEdgeListComponent(cr)
+	views.RegisterEdgeRowComponent(cr)
 	reg := render.New(
 		render.WithEngines(gsxEngine),
 		// gsx compiles to direct Go calls — the source bytes are
@@ -103,15 +111,11 @@ func main() {
 	dash := r.Group("/dashboard", auth.RequireUser)
 	dash.Get("/", overview(reg))
 	dash.Get("/editor", editor(reg))
-	dash.Post("/editor/save", editorSave(reg))
-	dash.Post("/editor/toggle", editorToggle(reg))
-	dash.Post("/editor/delete", editorDelete(reg))
+	dash.Get("/editor/table", editorTable(reg)) // HTMX search partial
 	dash.Get("/sql", sqlPage(reg))
 	dash.Post("/sql/run", sqlRun(reg))
 	dash.Get("/temporal", temporal(reg))
 	dash.Get("/graph", graph(reg))
-	dash.Post("/graph/add", graphAdd(reg))
-	dash.Post("/graph/remove", graphRemove(reg))
 	dash.Get("/settings", settings(reg))
 
 	// Colocated server actions (@action in .gsx) — one mount point.
@@ -366,6 +370,23 @@ func editor(reg *render.Registry) nanite.HandlerFunc {
 	}
 }
 
+// editorTable renders just the TodoTable — the debounced search
+// input swaps it in place via HTMX.
+func editorTable(reg *render.Registry) nanite.HandlerFunc {
+	return func(c *nanite.Context) {
+		filter := c.Query("q")
+		todos, err := db.Default.Todos(c.Request.Context(), filter)
+		if err != nil {
+			fail(reg, c, err)
+			return
+		}
+		if err := nano.Render(c, reg, "gsx", "TodoTable",
+			map[string]any{"todos": todos, "filter": filter}); err != nil {
+			fail(reg, c, err)
+		}
+	}
+}
+
 // editorSave inserts a todo (PRG — mutate, redirect back).
 func editorSave(reg *render.Registry) nanite.HandlerFunc {
 	return func(c *nanite.Context) {
@@ -426,7 +447,8 @@ func sqlPage(reg *render.Registry) nanite.HandlerFunc {
 	}
 }
 
-// sqlRun executes the submitted SQL and re-renders with results.
+// sqlRun executes the submitted SQL and swaps in the results
+// region (HTMX partial).
 func sqlRun(reg *render.Registry) nanite.HandlerFunc {
 	return func(c *nanite.Context) {
 		text := c.FormValue("sql")
@@ -439,7 +461,10 @@ func sqlRun(reg *render.Registry) nanite.HandlerFunc {
 			page.Dash.SQLColumns = cols
 			page.Dash.SQLRows = rows
 		}
-		if err := renderDash(reg, c, "SQLPage", page); err != nil {
+		if err := nano.Render(c, reg, "gsx", "SQLResults",
+			map[string]any{"error": page.Dash.SQLError,
+				"columns": page.Dash.SQLColumns,
+				"rows": page.Dash.SQLRows, "text": page.Dash.SQLText}); err != nil {
 			fail(reg, c, err)
 		}
 	}
@@ -521,62 +546,6 @@ func graph(reg *render.Registry) nanite.HandlerFunc {
 		if err := renderDash(reg, c, "GraphPage", page); err != nil {
 			fail(reg, c, err)
 		}
-	}
-}
-
-// graphAdd creates a FOLLOWS edge (GRAPH_EDGES INSERT). Missing
-// endpoints are auto-created as minimal user records, then the
-// edge is added.
-func graphAdd(reg *render.Registry) nanite.HandlerFunc {
-	return func(c *nanite.Context) {
-		from, to := c.FormValue("from"), c.FormValue("to")
-		if from == "" || to == "" {
-			c.Redirect(http.StatusFound, "/dashboard/graph?msg="+
-				url.QueryEscape("Both endpoints are required."))
-			return
-		}
-		// The demo's id convention is lowercase — normalize the
-		// endpoints so "Bob" resolves to the seeded "bob".
-		from, to = strings.ToLower(from), strings.ToLower(to)
-		ctx := c.Request.Context()
-		var created []string
-		for _, id := range []string{from, to} {
-			u, err := db.Default.UserByID(ctx, id)
-			if err != nil {
-				fail(reg, c, err)
-				return
-			}
-			if u == nil {
-				created = append(created, id)
-			}
-		}
-		for _, id := range created {
-			if err := db.Default.EnsureUser(ctx, id); err != nil {
-				fail(reg, c, err)
-				return
-			}
-		}
-		if err := db.Default.Follow(ctx, from, to); err != nil {
-			fail(reg, c, err)
-			return
-		}
-		if len(created) > 0 {
-			c.Redirect(http.StatusFound, "/dashboard/graph?msg="+
-				url.QueryEscape("created "+strings.Join(created, ", ")+" — edge added.")+"&ok=1")
-			return
-		}
-		c.Redirect(http.StatusFound, "/dashboard/graph")
-	}
-}
-
-// graphRemove deletes a FOLLOWS edge (GRAPH_EDGES DELETE).
-func graphRemove(reg *render.Registry) nanite.HandlerFunc {
-	return func(c *nanite.Context) {
-		if err := db.Default.Unfollow(c.Request.Context(), c.FormValue("from"), c.FormValue("to")); err != nil {
-			fail(reg, c, err)
-			return
-		}
-		c.Redirect(http.StatusFound, "/dashboard/graph")
 	}
 }
 

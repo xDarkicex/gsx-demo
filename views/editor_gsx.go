@@ -6,6 +6,8 @@ import (
 "fmt"
 "html"
 "github.com/xDarkicex/gsx-demo/models"
+"github.com/xDarkicex/gsx-demo/internal/db"
+"errors"
 
 "github.com/xDarkicex/nanite-gsx"
 "github.com/xDarkicex/nanite-render"
@@ -66,9 +68,11 @@ func RenderEditor(c *render.ComponentContext, p models.Page, children func(c *re
 	c.WriteHydrateProps("x-data", map[string]any{"newTodo": false})
 	c.WriteString(">")
 	c.WriteString(`<form`)
-	c.WriteString(" method=\"get\"")
-	c.WriteString(" action=\"/dashboard/editor\"")
 	c.WriteString(" class=\"search-form\"")
+	c.WriteString(" hx-get=\"/dashboard/editor/table\"")
+	c.WriteString(" hx-target=\"#todo-table\"")
+	c.WriteString(" hx-trigger=\"input changed delay:300ms\"")
+	c.WriteString(" hx-swap=\"outerHTML\"")
 	c.WriteString(">")
 	c.WriteString(`<label`)
 	c.WriteString(" class=\"sr-only\"")
@@ -124,8 +128,10 @@ func RenderEditor(c *render.ComponentContext, p models.Page, children func(c *re
 	c.WriteString(">")
 	c.WriteString(`<form`)
 	c.WriteString(" method=\"post\"")
-	c.WriteString(" action=\"/dashboard/editor/save\"")
 	c.WriteString(" class=\"dashboard-card\"")
+	c.WriteString(" hx-post=\"/_nano/action/TodoTable/Save\"")
+	c.WriteString(" hx-target=\"#todo-table\"")
+	c.WriteString(" hx-swap=\"outerHTML\"")
 	c.WriteString(">")
 	c.WriteString(`<div`)
 	c.WriteString(" class=\"card-heading\"")
@@ -250,6 +256,25 @@ func RenderEditor(c *render.ComponentContext, p models.Page, children func(c *re
 	c.WriteString(`</div>`)
 	c.WriteString(`</form>`)
 	c.WriteString(`</div>`)
+	c.WriteString(`<div`)
+	c.WriteString(" id=\"todo-table\"")
+	c.WriteString(">")
+	if err := RenderTodoTable(c, map[string]any{"todos": p.Dash.Todos, "filter": p.Dash.TodoFilter}, nil); err != nil { return err }
+	c.WriteString(`</div>`)
+return nil
+}
+
+func RegisterEditor(e *gsx.Engine) {
+	e.Register("Editor", func(c *render.ComponentContext, data any) error {
+	return RenderEditor(c, data.(models.Page), nil)
+	})
+}
+
+
+
+type TodoTable struct{}
+
+func RenderTodoTable(c *render.ComponentContext, props map[string]any, children func(c *render.ComponentContext) error) error {
 	c.WriteString(`<section`)
 	c.WriteString(" class=\"dashboard-card table-card\"")
 	c.WriteString(">")
@@ -269,7 +294,7 @@ func RenderEditor(c *render.ComponentContext, p models.Page, children func(c *re
 	c.WriteString(`<span`)
 	c.WriteString(" class=\"record-count\"")
 	c.WriteString(">")
-	c.WriteString(html.EscapeString(fmt.Sprint(len(p.Dash.Todos))))
+	c.WriteString(html.EscapeString(fmt.Sprint(len(props["todos"].([]models.Todo)))))
 	c.WriteString(` records`)
 	c.WriteString(`</span>`)
 	c.WriteString(`</div>`)
@@ -304,130 +329,13 @@ func RenderEditor(c *render.ComponentContext, p models.Page, children func(c *re
 	c.WriteString(`</tr>`)
 	c.WriteString(`</thead>`)
 	c.WriteString(`<tbody>`)
-	for _, t := range p.Dash.Todos {
-		c.WriteString(`<tr`)
-		c.WriteString(" class=\"")
-		c.WriteString(html.EscapeString(fmt.Sprint(todoRowClass(t.Completed))))
-		c.WriteString("\"")
-		c.WriteString(">")
-		c.WriteString(`<td`)
-		c.WriteString(" class=\"todo-title-cell\"")
-		c.WriteString(">")
-		c.WriteString(`<span`)
-		c.WriteString(" class=\"")
-		c.WriteString(html.EscapeString(fmt.Sprint(todoMarkerClass(t.Completed))))
-		c.WriteString("\"")
-		c.WriteString(">")
-		c.WriteString(`</span>`)
-		c.WriteString(`<strong>`)
-		c.WriteString(html.EscapeString(fmt.Sprint(t.Title)))
-		c.WriteString(`</strong>`)
-		c.WriteString(`</td>`)
-		c.WriteString(`<td>`)
-		if t.Completed {
-			c.WriteString(`<span`)
-			c.WriteString(" class=\"status-pill status-done\"")
-			c.WriteString(">")
-			c.WriteString(`done`)
-			c.WriteString(`</span>`)
-		} else {
-			c.WriteString(`<span`)
-			c.WriteString(" class=\"status-pill status-open\"")
-			c.WriteString(">")
-			c.WriteString(`open`)
-			c.WriteString(`</span>`)
-		}
-		c.WriteString(`</td>`)
-		c.WriteString(`<td>`)
-		c.WriteString(`<span`)
-		c.WriteString(" class=\"priority-pill\"")
-		c.WriteString(">")
-		c.WriteString(`P`)
-		c.WriteString(html.EscapeString(fmt.Sprint(t.Priority)))
-		c.WriteString(`</span>`)
-		c.WriteString(`</td>`)
-		c.WriteString(`<td`)
-		c.WriteString(" class=\"muted\"")
-		c.WriteString(">")
-		c.WriteString(html.EscapeString(fmt.Sprint(t.DueAt)))
-		c.WriteString(`</td>`)
-		c.WriteString(`<td`)
-		c.WriteString(" class=\"muted small\"")
-		c.WriteString(">")
-		c.WriteString(html.EscapeString(fmt.Sprint(t.Tags)))
-		c.WriteString(`</td>`)
-		c.WriteString(`<td`)
-		c.WriteString(" class=\"row-actions\"")
-		c.WriteString(">")
-		c.WriteString(`<form`)
-		c.WriteString(" method=\"post\"")
-		c.WriteString(" action=\"/dashboard/editor/toggle\"")
-		c.WriteString(" class=\"action-form\"")
-		c.WriteString(">")
-		c.WriteString(`<input`)
-		c.WriteString(" type=\"hidden\"")
-		c.WriteString(" name=\"id\"")
-		c.WriteString(" value=\"")
-		c.WriteString(html.EscapeString(fmt.Sprint(t.ID)))
-		c.WriteString("\"")
-		c.WriteString(">")
-		c.WriteString(`</input>`)
-		c.WriteString(`<input`)
-		c.WriteString(" type=\"hidden\"")
-		c.WriteString(" name=\"q\"")
-		c.WriteString(" value=\"")
-		c.WriteString(html.EscapeString(fmt.Sprint(p.Dash.TodoFilter)))
-		c.WriteString("\"")
-		c.WriteString(">")
-		c.WriteString(`</input>`)
-		if t.Completed {
-			c.WriteString(`<button`)
-			c.WriteString(" type=\"submit\"")
-			c.WriteString(" class=\"uk-button uk-button-small uk-button-secondary action-button\"")
-			c.WriteString(">")
-			c.WriteString(`Mark open`)
-			c.WriteString(`</button>`)
-		} else {
-			c.WriteString(`<button`)
-			c.WriteString(" type=\"submit\"")
-			c.WriteString(" class=\"uk-button uk-button-small uk-button-secondary action-button\"")
-			c.WriteString(">")
-			c.WriteString(`Mark done`)
-			c.WriteString(`</button>`)
-		}
-		c.WriteString(`</form>`)
-		c.WriteString(`<form`)
-		c.WriteString(" method=\"post\"")
-		c.WriteString(" action=\"/dashboard/editor/delete\"")
-		c.WriteString(" class=\"action-form\"")
-		c.WriteString(">")
-		c.WriteString(`<input`)
-		c.WriteString(" type=\"hidden\"")
-		c.WriteString(" name=\"id\"")
-		c.WriteString(" value=\"")
-		c.WriteString(html.EscapeString(fmt.Sprint(t.ID)))
-		c.WriteString("\"")
-		c.WriteString(">")
-		c.WriteString(`</input>`)
-		c.WriteString(`<input`)
-		c.WriteString(" type=\"hidden\"")
-		c.WriteString(" name=\"q\"")
-		c.WriteString(" value=\"")
-		c.WriteString(html.EscapeString(fmt.Sprint(p.Dash.TodoFilter)))
-		c.WriteString("\"")
-		c.WriteString(">")
-		c.WriteString(`</input>`)
-		c.WriteString(`<button`)
-		c.WriteString(" type=\"submit\"")
-		c.WriteString(" class=\"uk-button uk-button-small uk-button-ghost action-button action-delete\"")
-		c.WriteString(">")
-		c.WriteString(`Delete`)
-		c.WriteString(`</button>`)
-		c.WriteString(`</form>`)
-		c.WriteString(`</td>`)
-		c.WriteString(`</tr>`)
+	for _, t := range props["todos"].([]models.Todo) {
+		if err := RenderTodoRow(c, map[string]any{
+                            "id": t.ID, "title": t.Title, "completed": t.Completed,
+                            "priority": t.Priority, "due_at": t.DueAt, "tags": t.Tags,
+                        }, nil); err != nil { return err }
 	}
-	if len(p.Dash.Todos) == 0 {
+	if len(props["todos"].([]models.Todo)) == 0 {
 		c.WriteString(`<tr>`)
 		c.WriteString(`<td`)
 		c.WriteString(" colspan=\"6\"")
@@ -444,9 +352,202 @@ func RenderEditor(c *render.ComponentContext, p models.Page, children func(c *re
 return nil
 }
 
-func RegisterEditor(e *gsx.Engine) {
-	e.Register("Editor", func(c *render.ComponentContext, data any) error {
-	return RenderEditor(c, data.(models.Page), nil)
+func RegisterTodoTable(e *gsx.Engine) {
+	e.Register("TodoTable", func(c *render.ComponentContext, data any) error {
+	return RenderTodoTable(c, data.(map[string]any), nil)
 	})
 }
 
+func RegisterTodoTableComponent(cr *render.ComponentRegistry) {
+	cr.Define("TodoTable").Action("Save", func(rc *render.RenderContext, props map[string]any) error {
+
+    title, _ := props["title"].(string)
+    if title == "" {
+        return errors.New("title is required")
+    }
+    dueAt, _ := props["due_at"].(string)
+    tags, _ := props["tags"].(string)
+    t := &models.Todo{
+        Title:     title,
+        Priority:  3,
+        DueAt:     dueAt,
+        Tags:      tags,
+        Completed: props["completed"] == true,
+    }
+    if p, ok := props["priority"].(int); ok && p >= 1 && p <= 5 {
+        t.Priority = p
+    }
+    if err := db.Default.SaveTodo(rc.Request.Context(), t); err != nil {
+        return err
+    }
+    ts, err := db.Default.Todos(rc.Request.Context(), "")
+    if err != nil {
+        return err
+    }
+    props["todos"] = ts
+    props["filter"] = ""
+    return nil
+
+		}).Render(func(c *render.ComponentContext) error {
+		return RenderTodoTable(c, c.Data.(map[string]any), nil)
+	}).Register(cr)
+}
+
+
+type TodoRow struct{}
+
+func RenderTodoRow(c *render.ComponentContext, props map[string]any, children func(c *render.ComponentContext) error) error {
+	c.WriteString(`<tr`)
+	c.WriteString(" class=\"")
+	c.WriteString(html.EscapeString(fmt.Sprint(todoRowClass(props["completed"] == true))))
+	c.WriteString("\"")
+	c.WriteString(">")
+	c.WriteString(`<td`)
+	c.WriteString(" class=\"todo-title-cell\"")
+	c.WriteString(">")
+	c.WriteString(`<span`)
+	c.WriteString(" class=\"")
+	c.WriteString(html.EscapeString(fmt.Sprint(todoMarkerClass(props["completed"] == true))))
+	c.WriteString("\"")
+	c.WriteString(">")
+	c.WriteString(`</span>`)
+	c.WriteString(`<strong>`)
+	c.WriteString(html.EscapeString(fmt.Sprint(props["title"])))
+	c.WriteString(`</strong>`)
+	c.WriteString(`</td>`)
+	c.WriteString(`<td>`)
+	if props["completed"] == true {
+		c.WriteString(`<span`)
+		c.WriteString(" class=\"status-pill status-done\"")
+		c.WriteString(">")
+		c.WriteString(`done`)
+		c.WriteString(`</span>`)
+	} else {
+		c.WriteString(`<span`)
+		c.WriteString(" class=\"status-pill status-open\"")
+		c.WriteString(">")
+		c.WriteString(`open`)
+		c.WriteString(`</span>`)
+	}
+	c.WriteString(`</td>`)
+	c.WriteString(`<td>`)
+	c.WriteString(`<span`)
+	c.WriteString(" class=\"priority-pill\"")
+	c.WriteString(">")
+	c.WriteString(`P`)
+	c.WriteString(html.EscapeString(fmt.Sprint(props["priority"])))
+	c.WriteString(`</span>`)
+	c.WriteString(`</td>`)
+	c.WriteString(`<td`)
+	c.WriteString(" class=\"muted\"")
+	c.WriteString(">")
+	c.WriteString(html.EscapeString(fmt.Sprint(props["due_at"])))
+	c.WriteString(`</td>`)
+	c.WriteString(`<td`)
+	c.WriteString(" class=\"muted small\"")
+	c.WriteString(">")
+	c.WriteString(html.EscapeString(fmt.Sprint(props["tags"])))
+	c.WriteString(`</td>`)
+	c.WriteString(`<td`)
+	c.WriteString(" class=\"row-actions\"")
+	c.WriteString(">")
+	c.WriteString(`<form`)
+	c.WriteString(" class=\"action-form\"")
+	c.WriteString(" hx-post=\"/_nano/action/TodoRow/Toggle\"")
+	c.WriteString(" hx-target=\"closest tr\"")
+	c.WriteString(" hx-swap=\"outerHTML\"")
+	c.WriteString(">")
+	c.WriteString(`<input`)
+	c.WriteString(" type=\"hidden\"")
+	c.WriteString(" name=\"id\"")
+	c.WriteString(" value=\"")
+	c.WriteString(html.EscapeString(fmt.Sprint(props["id"].(string))))
+	c.WriteString("\"")
+	c.WriteString(">")
+	c.WriteString(`</input>`)
+	c.WriteString(`<input`)
+	c.WriteString(" type=\"hidden\"")
+	c.WriteString(" name=\"completed\"")
+	c.WriteString(" value=\"")
+	c.WriteString(html.EscapeString(fmt.Sprint(props["completed"])))
+	c.WriteString("\"")
+	c.WriteString(">")
+	c.WriteString(`</input>`)
+	c.WriteString(`<button`)
+	c.WriteString(" type=\"submit\"")
+	c.WriteString(" class=\"uk-button uk-button-small uk-button-secondary action-button\"")
+	c.WriteString(">")
+	if props["completed"] == true {
+		c.WriteString(`Mark open
+                    } `)
+		c.WriteString(`Mark done
+                    }
+                `)
+		c.WriteString(`</button>`)
+		c.WriteString(`</form>`)
+	}
+	c.WriteString(`<form`)
+	c.WriteString(" class=\"action-form\"")
+	c.WriteString(" hx-post=\"/_nano/action/TodoRow/Delete\"")
+	c.WriteString(" hx-target=\"closest tr\"")
+	c.WriteString(" hx-swap=\"delete\"")
+	c.WriteString(">")
+	c.WriteString(`<input`)
+	c.WriteString(" type=\"hidden\"")
+	c.WriteString(" name=\"id\"")
+	c.WriteString(" value=\"")
+	c.WriteString(html.EscapeString(fmt.Sprint(props["id"].(string))))
+	c.WriteString("\"")
+	c.WriteString(">")
+	c.WriteString(`</input>`)
+	c.WriteString(`<button`)
+	c.WriteString(" type=\"submit\"")
+	c.WriteString(" class=\"uk-button uk-button-small uk-button-ghost action-button action-delete\"")
+	c.WriteString(">")
+	c.WriteString(`Delete`)
+	c.WriteString(`</button>`)
+	c.WriteString(`</form>`)
+	c.WriteString(`</td>`)
+	c.WriteString(`</tr>`)
+return nil
+}
+
+func RegisterTodoRow(e *gsx.Engine) {
+	e.Register("TodoRow", func(c *render.ComponentContext, data any) error {
+	return RenderTodoRow(c, data.(map[string]any), nil)
+	})
+}
+
+func RegisterTodoRowComponent(cr *render.ComponentRegistry) {
+	cr.Define("TodoRow").Action("Toggle", func(rc *render.RenderContext, props map[string]any) error {
+
+    id := props["id"].(string)
+    if err := db.Default.ToggleTodo(rc.Request.Context(), id); err != nil {
+        return err
+    }
+    // Reload the full record — the re-render needs every field,
+    // not just the id from the form.
+    t, err := db.Default.TodoByID(rc.Request.Context(), id)
+    if err != nil {
+        return err
+    }
+    props["id"] = t.ID
+    props["title"] = t.Title
+    props["completed"] = t.Completed
+    props["priority"] = t.Priority
+    props["due_at"] = t.DueAt
+    props["tags"] = t.Tags
+    return nil
+
+		}).Action("Delete", func(rc *render.RenderContext, props map[string]any) error {
+
+    id := props["id"].(string)
+    if err := db.Default.DeleteTodo(rc.Request.Context(), id); err != nil {
+        return err
+    }
+    return nil // htmx swap:delete removes the row; body ignored
+
+		}).Render(func(c *render.ComponentContext) error {
+		return RenderTodoRow(c, c.Data.(map[string]any), nil)
+	}).Register(cr)
+}

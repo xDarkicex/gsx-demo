@@ -273,6 +273,30 @@ func (d *DB) IncrementCounter(ctx context.Context) (int, error) {
 	return n, nil
 }
 
+// SuggestFresh returns 2-hop suggestions excluding people already
+// followed — shared by the graph handler and the EdgeList action.
+func (d *DB) SuggestFresh(ctx context.Context, me string) ([]models.Suggestion, error) {
+	following, err := d.Following(ctx, me)
+	if err != nil {
+		return nil, err
+	}
+	set := make(map[string]bool, len(following))
+	for _, f := range following {
+		set[f.ID] = true
+	}
+	suggestions, err := d.Suggest(ctx, me)
+	if err != nil {
+		return nil, err
+	}
+	var out []models.Suggestion
+	for _, s := range suggestions {
+		if !set[s.ID] {
+			out = append(out, s)
+		}
+	}
+	return out, nil
+}
+
 // Count returns the number of users (homepage + dashboard stats).
 func (d *DB) Count(ctx context.Context) (int, error) {
 	res, err := d.raw.Query(ctx, "SELECT COUNT(*) AS n FROM users")
@@ -406,14 +430,24 @@ func (d *DB) Todos(ctx context.Context, filter string) ([]models.Todo, error) {
 	return out, nil
 }
 
-// SaveTodo inserts a new todo row (parameterized CRUD).
+// SaveTodo inserts a new todo row (parameterized CRUD). An empty
+// id is generated (action bodies insert directly).
 func (d *DB) SaveTodo(ctx context.Context, t *models.Todo) error {
+	if t.ID == "" {
+		t.ID = fmt.Sprintf("todo-%x", time.Now().UnixNano())
+	}
+	// Empty tags become a valid empty JSON array — the JSON column
+	// rejects nil and "".
+	tags := t.Tags
+	if tags == "" {
+		tags = "[]"
+	}
 	_, err := d.raw.QueryWithParams(ctx,
 		`INSERT INTO todos (id, title, completed, priority, due_at, tags)
 		 VALUES ($1, $2, $3, $4, $5, $6)`,
 		libravdb.QueryParams{
 			"1": t.ID, "2": t.Title, "3": t.Completed, "4": t.Priority,
-			"5": t.DueAt, "6": t.Tags,
+			"5": t.DueAt, "6": tags,
 		})
 	return err
 }
@@ -582,4 +616,26 @@ func (d *DB) EnsureUser(ctx context.Context, id string) error {
 		PasswordHash: hash,
 		CreatedAt:    time.Now().UTC().Format(time.RFC3339),
 	})
+}
+
+// TodoByID returns one todo row.
+func (d *DB) TodoByID(ctx context.Context, id string) (*models.Todo, error) {
+	res, err := d.raw.QueryWithParams(ctx,
+		`SELECT id, title, completed, priority, due_at, tags FROM todos WHERE id = $1`,
+		libravdb.QueryParams{"1": id})
+	if err != nil {
+		return nil, err
+	}
+	if len(res.Results) == 0 {
+		return nil, nil
+	}
+	r := res.Results[0]
+	return &models.Todo{
+		ID:        str(r.Metadata["id"]),
+		Title:     str(r.Metadata["title"]),
+		Completed: r.Metadata["completed"] == true,
+		Priority:  atoi(r.Metadata["priority"]),
+		DueAt:     str(r.Metadata["due_at"]),
+		Tags:      fmt.Sprint(r.Metadata["tags"]),
+	}, nil
 }

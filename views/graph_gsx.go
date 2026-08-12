@@ -6,6 +6,9 @@ import (
 "fmt"
 "html"
 "github.com/xDarkicex/gsx-demo/models"
+"github.com/xDarkicex/gsx-demo/internal/auth"
+"github.com/xDarkicex/gsx-demo/internal/db"
+"strings"
 
 "github.com/xDarkicex/nanite-gsx"
 "github.com/xDarkicex/nanite-render"
@@ -58,18 +61,29 @@ func RenderGraphPage(c *render.ComponentContext, p models.Page, children func(c 
 	c.WriteString(` FOLLOWS`)
 	c.WriteString(`</div>`)
 	c.WriteString(`</div>`)
-	if p.Dash.GraphMsg != "" {
-		c.WriteString(`<div`)
-		c.WriteString(" class=\"notice notice-error\"")
-		c.WriteString(">")
-		c.WriteString(`<span`)
-		c.WriteString(" class=\"notice-icon\"")
-		c.WriteString(">")
-		c.WriteString(`✕`)
-		c.WriteString(`</span>`)
-		c.WriteString(html.EscapeString(fmt.Sprint(p.Dash.GraphMsg)))
-		c.WriteString(`</div>`)
-	}
+	c.WriteString(`<div`)
+	c.WriteString(" id=\"graph-panels\"")
+	c.WriteString(">")
+	if err := RenderEdgeList(c, map[string]any{
+            "edges": p.Dash.Edges, "suggestions": p.Dash.Suggestions,
+            "following": p.Dash.Following, "msg": p.Dash.GraphMsg,
+            "ok": p.Dash.GraphMsgOk, "me": p.User.ID,
+        }, nil); err != nil { return err }
+	c.WriteString(`</div>`)
+return nil
+}
+
+func RegisterGraphPage(e *gsx.Engine) {
+	e.Register("GraphPage", func(c *render.ComponentContext, data any) error {
+	return RenderGraphPage(c, data.(models.Page), nil)
+	})
+}
+
+
+
+type EdgeList struct{}
+
+func RenderEdgeList(c *render.ComponentContext, props map[string]any, children func(c *render.ComponentContext) error) error {
 	c.WriteString(`<div`)
 	c.WriteString(" class=\"overview-grid\"")
 	c.WriteString(">")
@@ -92,13 +106,39 @@ func RenderGraphPage(c *render.ComponentContext, p models.Page, children func(c 
 	c.WriteString(`<span`)
 	c.WriteString(" class=\"record-count\"")
 	c.WriteString(">")
-	c.WriteString(html.EscapeString(fmt.Sprint(len(p.Dash.Edges))))
+	c.WriteString(html.EscapeString(fmt.Sprint(len(props["edges"].([]models.Edge)))))
 	c.WriteString(`</span>`)
 	c.WriteString(`</div>`)
+	if props["msg"].(string) != "" {
+		if props["ok"] == true {
+			c.WriteString(`<div`)
+			c.WriteString(" class=\"notice notice-success\"")
+			c.WriteString(">")
+			c.WriteString(`<span`)
+			c.WriteString(" class=\"notice-icon\"")
+			c.WriteString(">")
+			c.WriteString(`✓`)
+			c.WriteString(`</span>`)
+			c.WriteString(html.EscapeString(fmt.Sprint(props["msg"].(string))))
+			c.WriteString(`</div>`)
+		} else {
+			c.WriteString(`<div`)
+			c.WriteString(" class=\"notice notice-error\"")
+			c.WriteString(">")
+			c.WriteString(`<span`)
+			c.WriteString(" class=\"notice-icon\"")
+			c.WriteString(">")
+			c.WriteString(`✕`)
+			c.WriteString(`</span>`)
+			c.WriteString(html.EscapeString(fmt.Sprint(props["msg"].(string))))
+			c.WriteString(`</div>`)
+		}
+	}
 	c.WriteString(`<form`)
-	c.WriteString(" method=\"post\"")
-	c.WriteString(" action=\"/dashboard/graph/add\"")
 	c.WriteString(" class=\"graph-add-form\"")
+	c.WriteString(" hx-post=\"/_nano/action/EdgeList/Add\"")
+	c.WriteString(" hx-target=\"#graph-panels\"")
+	c.WriteString(" hx-swap=\"outerHTML\"")
 	c.WriteString(">")
 	c.WriteString(`<input`)
 	c.WriteString(" class=\"uk-input\"")
@@ -128,54 +168,10 @@ func RenderGraphPage(c *render.ComponentContext, p models.Page, children func(c 
 	c.WriteString(`<ul`)
 	c.WriteString(" class=\"clean-list\"")
 	c.WriteString(">")
-	for _, e := range p.Dash.Edges {
-		c.WriteString(`<li>`)
-		c.WriteString(`<span`)
-		c.WriteString(" class=\"list-avatar\"")
-		c.WriteString(">")
-		c.WriteString(html.EscapeString(fmt.Sprint(userInitial(e.From))))
-		c.WriteString(`</span>`)
-		c.WriteString(`<span`)
-		c.WriteString(" class=\"list-copy\"")
-		c.WriteString(">")
-		c.WriteString(`<strong>`)
-		c.WriteString(html.EscapeString(fmt.Sprint(e.From)))
-		c.WriteString(`</strong>`)
-		c.WriteString(`<span>`)
-		c.WriteString(`→ `)
-		c.WriteString(html.EscapeString(fmt.Sprint(e.To)))
-		c.WriteString(`</span>`)
-		c.WriteString(`</span>`)
-		c.WriteString(`<form`)
-		c.WriteString(" method=\"post\"")
-		c.WriteString(" action=\"/dashboard/graph/remove\"")
-		c.WriteString(" class=\"action-form list-action\"")
-		c.WriteString(">")
-		c.WriteString(`<input`)
-		c.WriteString(" type=\"hidden\"")
-		c.WriteString(" name=\"from\"")
-		c.WriteString(" value=\"")
-		c.WriteString(html.EscapeString(fmt.Sprint(e.From)))
-		c.WriteString("\"")
-		c.WriteString(">")
-		c.WriteString(`</input>`)
-		c.WriteString(`<input`)
-		c.WriteString(" type=\"hidden\"")
-		c.WriteString(" name=\"to\"")
-		c.WriteString(" value=\"")
-		c.WriteString(html.EscapeString(fmt.Sprint(e.To)))
-		c.WriteString("\"")
-		c.WriteString(">")
-		c.WriteString(`</input>`)
-		c.WriteString(`<button`)
-		c.WriteString(" class=\"uk-button uk-button-small uk-button-ghost action-button action-delete\"")
-		c.WriteString(">")
-		c.WriteString(`Remove`)
-		c.WriteString(`</button>`)
-		c.WriteString(`</form>`)
-		c.WriteString(`</li>`)
+	for _, e := range props["edges"].([]models.Edge) {
+		if err := RenderEdgeRow(c, map[string]any{"from": e.From, "to": e.To}, nil); err != nil { return err }
 	}
-	if len(p.Dash.Edges) == 0 {
+	if len(props["edges"].([]models.Edge)) == 0 {
 		c.WriteString(`<li`)
 		c.WriteString(" class=\"empty-state\"")
 		c.WriteString(">")
@@ -203,7 +199,7 @@ func RenderGraphPage(c *render.ComponentContext, p models.Page, children func(c 
 	c.WriteString(`<span`)
 	c.WriteString(" class=\"record-count\"")
 	c.WriteString(">")
-	c.WriteString(html.EscapeString(fmt.Sprint(len(p.Dash.Suggestions))))
+	c.WriteString(html.EscapeString(fmt.Sprint(len(props["suggestions"].([]models.Suggestion)))))
 	c.WriteString(`</span>`)
 	c.WriteString(`</div>`)
 	c.WriteString(`<p`)
@@ -220,7 +216,7 @@ func RenderGraphPage(c *render.ComponentContext, p models.Page, children func(c 
 	c.WriteString(`<ul`)
 	c.WriteString(" class=\"clean-list\"")
 	c.WriteString(">")
-	for _, s := range p.Dash.Suggestions {
+	for _, s := range props["suggestions"].([]models.Suggestion) {
 		c.WriteString(`<li>`)
 		c.WriteString(`<span`)
 		c.WriteString(" class=\"list-avatar\"")
@@ -243,7 +239,7 @@ func RenderGraphPage(c *render.ComponentContext, p models.Page, children func(c 
 		c.WriteString(`</span>`)
 		c.WriteString(`</li>`)
 	}
-	if len(p.Dash.Suggestions) == 0 {
+	if len(props["suggestions"].([]models.Suggestion)) == 0 {
 		c.WriteString(`<li`)
 		c.WriteString(" class=\"empty-state\"")
 		c.WriteString(">")
@@ -256,9 +252,138 @@ func RenderGraphPage(c *render.ComponentContext, p models.Page, children func(c 
 return nil
 }
 
-func RegisterGraphPage(e *gsx.Engine) {
-	e.Register("GraphPage", func(c *render.ComponentContext, data any) error {
-	return RenderGraphPage(c, data.(models.Page), nil)
+func RegisterEdgeList(e *gsx.Engine) {
+	e.Register("EdgeList", func(c *render.ComponentContext, data any) error {
+	return RenderEdgeList(c, data.(map[string]any), nil)
 	})
 }
 
+func RegisterEdgeListComponent(cr *render.ComponentRegistry) {
+	cr.Define("EdgeList").Action("Add", func(rc *render.RenderContext, props map[string]any) error {
+
+    from := strings.ToLower(props["from"].(string))
+    to := strings.ToLower(props["to"].(string))
+    if from == "" || to == "" {
+        props["msg"] = "Both endpoints are required."
+        props["ok"] = false
+        return nil
+    }
+    var created []string
+    for _, id := range []string{from, to} {
+        u, err := db.Default.UserByID(rc.Request.Context(), id)
+        if err != nil {
+            return err
+        }
+        if u == nil {
+            created = append(created, id)
+        }
+    }
+    for _, id := range created {
+        if err := db.Default.EnsureUser(rc.Request.Context(), id); err != nil {
+            return err
+        }
+    }
+    if err := db.Default.Follow(rc.Request.Context(), from, to); err != nil {
+        return err
+    }
+    props["msg"] = ""
+    if len(created) > 0 {
+        props["msg"] = "created " + strings.Join(created, ", ") + " — edge added."
+        props["ok"] = true
+    }
+    // Reload the panel data.
+    es, err := db.Default.Edges(rc.Request.Context())
+    if err != nil {
+        return err
+    }
+    props["edges"] = es
+    me := auth.UserFromRequest(rc.Request)
+    sug, err := db.Default.SuggestFresh(rc.Request.Context(), me.ID)
+    if err != nil {
+        return err
+    }
+    props["suggestions"] = sug
+    following, err := db.Default.Following(rc.Request.Context(), me.ID)
+    if err != nil {
+        return err
+    }
+    props["following"] = following
+    return nil
+
+		}).Render(func(c *render.ComponentContext) error {
+		return RenderEdgeList(c, c.Data.(map[string]any), nil)
+	}).Register(cr)
+}
+
+
+type EdgeRow struct{}
+
+func RenderEdgeRow(c *render.ComponentContext, props map[string]any, children func(c *render.ComponentContext) error) error {
+	c.WriteString(`<li>`)
+	c.WriteString(`<span`)
+	c.WriteString(" class=\"list-avatar\"")
+	c.WriteString(">")
+	c.WriteString(html.EscapeString(fmt.Sprint(userInitial(props["from"].(string)))))
+	c.WriteString(`</span>`)
+	c.WriteString(`<span`)
+	c.WriteString(" class=\"list-copy\"")
+	c.WriteString(">")
+	c.WriteString(`<strong>`)
+	c.WriteString(html.EscapeString(fmt.Sprint(props["from"].(string))))
+	c.WriteString(`</strong>`)
+	c.WriteString(`<span>`)
+	c.WriteString(`→ `)
+	c.WriteString(html.EscapeString(fmt.Sprint(props["to"].(string))))
+	c.WriteString(`</span>`)
+	c.WriteString(`</span>`)
+	c.WriteString(`<form`)
+	c.WriteString(" class=\"action-form list-action\"")
+	c.WriteString(" hx-post=\"/_nano/action/EdgeRow/Remove\"")
+	c.WriteString(" hx-target=\"closest li\"")
+	c.WriteString(" hx-swap=\"delete\"")
+	c.WriteString(">")
+	c.WriteString(`<input`)
+	c.WriteString(" type=\"hidden\"")
+	c.WriteString(" name=\"from\"")
+	c.WriteString(" value=\"")
+	c.WriteString(html.EscapeString(fmt.Sprint(props["from"].(string))))
+	c.WriteString("\"")
+	c.WriteString(">")
+	c.WriteString(`</input>`)
+	c.WriteString(`<input`)
+	c.WriteString(" type=\"hidden\"")
+	c.WriteString(" name=\"to\"")
+	c.WriteString(" value=\"")
+	c.WriteString(html.EscapeString(fmt.Sprint(props["to"].(string))))
+	c.WriteString("\"")
+	c.WriteString(">")
+	c.WriteString(`</input>`)
+	c.WriteString(`<button`)
+	c.WriteString(" class=\"uk-button uk-button-small uk-button-ghost action-button action-delete\"")
+	c.WriteString(">")
+	c.WriteString(`Remove`)
+	c.WriteString(`</button>`)
+	c.WriteString(`</form>`)
+	c.WriteString(`</li>`)
+return nil
+}
+
+func RegisterEdgeRow(e *gsx.Engine) {
+	e.Register("EdgeRow", func(c *render.ComponentContext, data any) error {
+	return RenderEdgeRow(c, data.(map[string]any), nil)
+	})
+}
+
+func RegisterEdgeRowComponent(cr *render.ComponentRegistry) {
+	cr.Define("EdgeRow").Action("Remove", func(rc *render.RenderContext, props map[string]any) error {
+
+    if err := db.Default.Unfollow(rc.Request.Context(),
+        props["from"].(string), props["to"].(string)); err != nil {
+        return err
+    }
+    return nil // htmx swap:delete removes the row
+
+		}).Render(func(c *render.ComponentContext) error {
+		return RenderEdgeRow(c, c.Data.(map[string]any), nil)
+	}).Register(cr)
+}
