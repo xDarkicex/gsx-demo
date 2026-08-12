@@ -95,9 +95,12 @@ func (d *DB) migrate(ctx context.Context) error {
 
 	// The durable sessions table — server restarts keep everyone
 	// logged in (the cookie stays valid; the token resolves here).
-	if _, err := d.raw.Query(ctx,
-		"CREATE TABLE sessions (token TEXT PRIMARY KEY, user_id TEXT, created_at TIMESTAMP, expires_at TIMESTAMP)"); err != nil {
-		if !strings.Contains(err.Error(), "exists") {
+	// The token IS the id column (INSERTs require an id), and a
+	// stale schema (e.g. token as the PK) is rebuilt.
+	if _, err := d.raw.Query(ctx, "SELECT id FROM sessions LIMIT 1"); err != nil {
+		_, _ = d.raw.Query(ctx, "DROP TABLE sessions")
+		if _, err := d.raw.Query(ctx,
+			"CREATE TABLE sessions (id TEXT PRIMARY KEY, user_id TEXT, created_at TIMESTAMP, expires_at TIMESTAMP)"); err != nil {
 			return fmt.Errorf("create sessions table: %w", err)
 		}
 	}
@@ -656,7 +659,7 @@ func (d *DB) TodoByID(ctx context.Context, id string) (*models.Todo, error) {
 // CreateSession records a session token for a user.
 func (d *DB) CreateSession(ctx context.Context, token, userID string, expiresAt time.Time) error {
 	_, err := d.raw.QueryWithParams(ctx,
-		`INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES ($1, $2, $3, $4)`,
+		`INSERT INTO sessions (id, user_id, created_at, expires_at) VALUES ($1, $2, $3, $4)`,
 		libravdb.QueryParams{
 			"1": token, "2": userID,
 			"3": time.Now().UTC().Format(time.RFC3339),
@@ -669,7 +672,7 @@ func (d *DB) CreateSession(ctx context.Context, token, userID string, expiresAt 
 // missing or expired.
 func (d *DB) SessionUser(ctx context.Context, token string) (*models.User, error) {
 	res, err := d.raw.QueryWithParams(ctx,
-		`SELECT user_id FROM sessions WHERE token = $1 AND expires_at > $2`,
+		`SELECT user_id FROM sessions WHERE id = $1 AND expires_at > $2`,
 		libravdb.QueryParams{"1": token, "2": time.Now().UTC().Format(time.RFC3339)})
 	if err != nil {
 		return nil, err
@@ -683,7 +686,7 @@ func (d *DB) SessionUser(ctx context.Context, token string) (*models.User, error
 // DeleteSession removes a session token (logout).
 func (d *DB) DeleteSession(ctx context.Context, token string) error {
 	_, err := d.raw.QueryWithParams(ctx,
-		`DELETE FROM sessions WHERE token = $1`,
+		`DELETE FROM sessions WHERE id = $1`,
 		libravdb.QueryParams{"1": token})
 	return err
 }

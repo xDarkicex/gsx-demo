@@ -142,6 +142,17 @@ reference) against the nanite stack + libraVDB. Format per entry:
   and braces inside comments neither open strings nor count toward the brace depth.
   Regression test `TestE2E_ActionCommentApostrophe`. Demo workaround reverted.
 
+### L8. [libraVDB] INSERT now requires an 'id' column — WORKAROUND
+
+- **Tried**: `INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES (...)` —
+  the sessions table's PK was named `token`, not `id`.
+- **Happened**: `INSERT requires an 'id' column` — a validation the executor added
+  recently (the same INSERT worked before the change). Any INSERT whose column list
+  lacks `id` now errors.
+- **Desired**: either accept arbitrary PK names, or document the `id` requirement.
+- **Status**: demo workaround — the sessions table's PK is now `id` (the token is the
+  id) + the migrate self-heals a stale `token`-PK schema (probe → drop → recreate).
+
 ### N1. [dependency] Alpine 3.14.1 x-show reactivity regression — WORKAROUND
 
 - **Tried**: `@click="newTodo = true"` toggling an `x-show="newTodo"` modal (the New
