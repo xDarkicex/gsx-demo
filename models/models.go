@@ -76,8 +76,9 @@ type DashData struct {
 	TemporalEnd   string
 
 	// Graph
-	Edges   []Edge
-	GraphMsg string // flash notice on the graph page
+	Edges      []Edge
+	GraphMsg   string // flash notice on the graph page
+	GraphMsgOk bool   // notice is a success (green)
 
 	// Overview
 	Bars []Bar

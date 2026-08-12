@@ -23,6 +23,7 @@ import (
 
 	"github.com/xDarkicex/libravdb/libravdb"
 
+	"github.com/xDarkicex/gsx-demo/internal/auth"
 	"github.com/xDarkicex/gsx-demo/models"
 )
 
@@ -557,4 +558,28 @@ func (d *DB) Edges(ctx context.Context) ([]models.Edge, error) {
 // RawQuery exposes the raw result for debugging.
 func (d *DB) RawQuery(ctx context.Context, sql string) (*libravdb.SearchResults, error) {
 	return d.raw.Query(ctx, sql)
+}
+
+// EnsureUser creates a minimal user record when the id doesn't
+// exist yet (auto-created graph endpoints). New users get the
+// demo password and a generated email.
+func (d *DB) EnsureUser(ctx context.Context, id string) error {
+	u, err := d.UserByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if u != nil {
+		return nil
+	}
+	hash, err := auth.HashPassword("demo123")
+	if err != nil {
+		return err
+	}
+	return d.CreateUser(ctx, &models.User{
+		ID:           id,
+		Name:         id,
+		Email:        strings.ToLower(id) + "@demo.dev",
+		PasswordHash: hash,
+		CreatedAt:    time.Now().UTC().Format(time.RFC3339),
+	})
 }

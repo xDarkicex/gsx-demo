@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -516,15 +517,16 @@ func graph(reg *render.Registry) nanite.HandlerFunc {
 		page.Dash.Following = following
 		page.Dash.Suggestions = fresh
 		page.Dash.GraphMsg = c.Query("msg")
+		page.Dash.GraphMsgOk = c.Query("ok") == "1"
 		if err := renderDash(reg, c, "GraphPage", page); err != nil {
 			fail(reg, c, err)
 		}
 	}
 }
 
-// graphAdd creates a FOLLOWS edge (GRAPH_EDGES INSERT). Both
-// endpoints must already exist as records — a missing user flashes
-// the libraVDB error instead of 500ing.
+// graphAdd creates a FOLLOWS edge (GRAPH_EDGES INSERT). Missing
+// endpoints are auto-created as minimal user records, then the
+// edge is added.
 func graphAdd(reg *render.Registry) nanite.HandlerFunc {
 	return func(c *nanite.Context) {
 		from, to := c.FormValue("from"), c.FormValue("to")
@@ -533,20 +535,34 @@ func graphAdd(reg *render.Registry) nanite.HandlerFunc {
 				url.QueryEscape("Both endpoints are required."))
 			return
 		}
+		// The demo's id convention is lowercase — normalize the
+		// endpoints so "Bob" resolves to the seeded "bob".
+		from, to = strings.ToLower(from), strings.ToLower(to)
+		ctx := c.Request.Context()
+		var created []string
 		for _, id := range []string{from, to} {
-			u, err := db.Default.UserByID(c.Request.Context(), id)
+			u, err := db.Default.UserByID(ctx, id)
 			if err != nil {
 				fail(reg, c, err)
 				return
 			}
 			if u == nil {
-				c.Redirect(http.StatusFound, "/dashboard/graph?msg="+
-					url.QueryEscape("user '"+id+"' not found — create the record first."))
+				created = append(created, id)
+			}
+		}
+		for _, id := range created {
+			if err := db.Default.EnsureUser(ctx, id); err != nil {
+				fail(reg, c, err)
 				return
 			}
 		}
-		if err := db.Default.Follow(c.Request.Context(), from, to); err != nil {
+		if err := db.Default.Follow(ctx, from, to); err != nil {
 			fail(reg, c, err)
+			return
+		}
+		if len(created) > 0 {
+			c.Redirect(http.StatusFound, "/dashboard/graph?msg="+
+				url.QueryEscape("created "+strings.Join(created, ", ")+" — edge added.")+"&ok=1")
 			return
 		}
 		c.Redirect(http.StatusFound, "/dashboard/graph")

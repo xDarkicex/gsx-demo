@@ -17,7 +17,11 @@ func GraphPage(p models.Page) {
     </div>
 
     @if p.Dash.GraphMsg != "" {
-        <div class="notice notice-error"><span class="notice-icon">✕</span>{p.Dash.GraphMsg}</div>
+        @if p.Dash.GraphMsgOk {
+            <div class="notice notice-success"><span class="notice-icon">✓</span>{p.Dash.GraphMsg}</div>
+        } @else {
+            <div class="notice notice-error"><span class="notice-icon">✕</span>{p.Dash.GraphMsg}</div>
+        }
     }
 
     <div class="overview-grid">
